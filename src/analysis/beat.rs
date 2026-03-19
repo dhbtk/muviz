@@ -1,4 +1,4 @@
-use crate::model::FrameFeatures;
+use crate::analysis::model::FrameFeatures;
 
 pub fn estimate_bpm_and_beats(
     frames: &[FrameFeatures],

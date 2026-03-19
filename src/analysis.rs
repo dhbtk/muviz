@@ -1,11 +1,16 @@
 use anyhow::Result;
+use features::{band_energies, positive_deltas, rms, spectral_flatness, spectral_flux};
+use fft::Stft;
+use model::{AnalysisConfig, FrameFeatures, TrackAnalysis};
+use beat::estimate_bpm_and_beats;
 
-use crate::{
-    fft::Stft,
-    features::{band_energies, positive_deltas, rms, spectral_flatness, spectral_flux},
-    model::{AnalysisConfig, FrameFeatures, TrackAnalysis},
-};
-use crate::beat::estimate_bpm_and_beats;
+pub mod audio_decode;
+pub mod features;
+pub mod fft;
+pub mod model;
+pub mod util;
+pub mod beat;
+pub mod gameplay;
 
 pub fn analyze_mono_pcm(samples: &[f32], config: &AnalysisConfig) -> Result<TrackAnalysis> {
     let stft = Stft::new(config.window_size, config.hop_size);

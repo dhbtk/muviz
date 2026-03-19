@@ -1,4 +1,4 @@
-use crate::model::Band;
+use crate::analysis::model::Band;
 
 pub fn rms(frame: &[f32]) -> f32 {
     if frame.is_empty() {

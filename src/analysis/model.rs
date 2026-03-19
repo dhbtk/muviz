@@ -52,3 +52,30 @@ pub struct TrackAnalysis {
     pub frame_len: usize,
     pub frames: Vec<FrameFeatures>,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GameplayFrame {
+    pub time_s: f32,
+
+    // "lanes" principais
+    pub lane_left: f32,
+    pub lane_center: f32,
+    pub lane_right: f32,
+
+    // intensidade geral (densidade de gameplay)
+    pub energy: f32,
+
+    // eventos (spawn)
+    pub event: f32,
+
+    // textura (ruído/percussivo)
+    pub texture: f32,
+
+    // sincronização rítmica
+    pub beat_strength: f32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GameplayAnalysis {
+    pub frames: Vec<GameplayFrame>,
+}

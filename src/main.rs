@@ -1,19 +1,13 @@
 mod analysis;
-mod audio_decode;
-mod features;
-mod fft;
-mod model;
-mod util;
-mod beat;
 
 use anyhow::Result;
 use clap::Parser;
 use std::{fs, path::PathBuf};
 
 use analysis::analyze_mono_pcm;
-use audio_decode::{decode_audio_file, interleaved_to_mono};
-use model::AnalysisConfig;
-use util::resample_mono;
+use analysis::audio_decode::{decode_audio_file, interleaved_to_mono};
+use analysis::model::AnalysisConfig;
+use analysis::util::resample_mono;
 
 #[derive(Debug, Parser)]
 struct Args {
