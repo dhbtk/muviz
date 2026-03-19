@@ -1,5 +1,7 @@
 use crate::analysis::model::FrameFeatures;
+use tracing::instrument;
 
+#[instrument(skip(frames))]
 pub fn estimate_bpm_and_beats(
     frames: &[FrameFeatures],
     hop_size: usize,

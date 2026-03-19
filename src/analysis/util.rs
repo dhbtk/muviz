@@ -1,8 +1,10 @@
 use anyhow::{bail, Result};
+use tracing::instrument;
 use audioadapter::Adapter;
 use audioadapter_buffers::direct::{SequentialSlice, SequentialSliceOfVecs};
 use rubato::{FixedSync, Resampler};
 
+#[instrument(skip(input))]
 pub fn resample_mono(
     input: &[f32],
     in_rate: u32,

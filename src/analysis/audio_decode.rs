@@ -1,4 +1,5 @@
 use anyhow::{anyhow, Context, Result};
+use tracing::instrument;
 use std::{fs::File, path::Path};
 
 use symphonia::core::{
@@ -27,6 +28,7 @@ fn codec_registry() -> CodecRegistry {
     codecs
 }
 
+#[instrument(skip(path))]
 pub fn decode_audio_file(path: &Path) -> Result<DecodedAudio> {
     let file = File::open(path).with_context(|| format!("failed to open {:?}", path))?;
     let mss = MediaSourceStream::new(Box::new(file), Default::default());
@@ -102,6 +104,7 @@ pub fn decode_audio_file(path: &Path) -> Result<DecodedAudio> {
     })
 }
 
+#[instrument(skip(samples))]
 pub fn interleaved_to_mono(samples: &[f32], channels: usize) -> Vec<f32> {
     if channels == 1 {
         return samples.to_vec();
