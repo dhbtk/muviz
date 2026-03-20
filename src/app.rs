@@ -1,12 +1,16 @@
 pub mod debug_ui;
 pub mod analyze;
+pub mod playback;
 
 use std::path::PathBuf;
+use bevy::asset::UnapprovedPathMode;
+use bevy::audio::{AddAudioSource, AudioPlugin};
 use crate::analysis::model;
 use bevy::prelude::*;
 use clap::Parser;
 use crate::app::analyze::AnalyzePlugin;
 use crate::app::debug_ui::DebugUiPlugin;
+use crate::app::playback::{PlaybackPlugin, SongAsset};
 
 pub fn run_app(args: Args) {
     let window_title = format!("muviz - {}", args.input_file_path().file_name().unwrap_or_default().to_string_lossy());
@@ -19,10 +23,15 @@ pub fn run_app(args: Args) {
                ..default()
            }),
           ..default()
+       }).set(AssetPlugin {
+           unapproved_path_mode: UnapprovedPathMode::Deny,
+           ..default()
        }))
        .init_state::<AppState>()
+       .add_audio_source::<SongAsset>()
        .add_plugins(AnalyzePlugin)
        .add_plugins(DebugUiPlugin)
+       .add_plugins(PlaybackPlugin)
        .run();
 }
 

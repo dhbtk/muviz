@@ -1,6 +1,7 @@
-use crate::analysis::model::{FrameFeatures, GameplayFrame};
+use crate::analysis::model::{FrameFeatures, GameplayFrame, TrackAnalysis};
 
-pub fn derive_gameplay(frames: &[FrameFeatures]) -> Vec<GameplayFrame> {
+pub fn derive_gameplay(analysis: &TrackAnalysis) -> Vec<GameplayFrame> {
+    let frames = &analysis.frames;
     let mut out = Vec::with_capacity(frames.len());
 
     for f in frames {
@@ -31,8 +32,7 @@ pub fn derive_gameplay(frames: &[FrameFeatures]) -> Vec<GameplayFrame> {
             0.7 * f.spectral_flatness +
                 0.3 * high;
 
-        // (placeholder até você ligar com beat.rs)
-        let beat_strength = 0.0;
+        let beat_strength = gaussian_beat_strength(f.time_s, &analysis.beat_times_s, 0.05);
 
         out.push(GameplayFrame {
             time_s: f.time_s,
@@ -43,12 +43,26 @@ pub fn derive_gameplay(frames: &[FrameFeatures]) -> Vec<GameplayFrame> {
             event,
             texture,
             beat_strength,
+            frame: f.clone(),
         });
     }
 
     normalize_gameplay(&mut out);
 
     out
+}
+
+fn gaussian_beat_strength(time_s: f32, beat_times_s: &[f32], sigma_s: f32) -> f32 {
+    if beat_times_s.is_empty() {
+        return 0.0;
+    }
+
+    let nearest_dist = beat_times_s
+        .iter()
+        .map(|b| (time_s - *b).abs())
+        .fold(f32::INFINITY, f32::min);
+
+    (-nearest_dist.powi(2) / (2.0 * sigma_s.powi(2))).exp()
 }
 
 fn normalize_gameplay(frames: &mut [GameplayFrame]) {

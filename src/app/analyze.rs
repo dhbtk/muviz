@@ -1,9 +1,12 @@
 use std::fs;
+use std::fs::canonicalize;
 use bevy::ecs::storage::Resources;
 use bevy::prelude::*;
 use crate::analysis;
-use crate::analysis::model::TrackAnalysis;
+use crate::analysis::gameplay::derive_gameplay;
+use crate::analysis::model::{FrameFeatures, GameplayFrame, TrackAnalysis};
 use crate::app::{AppState, Args};
+use crate::app::playback::SongAsset;
 
 pub struct AnalyzePlugin;
 
@@ -13,7 +16,7 @@ impl Plugin for AnalyzePlugin {
     }
 }
 
-fn start_analysis(args: Res<Args>, mut commands: Commands,) -> Result {
+fn start_analysis(args: Res<Args>, mut commands: Commands, assets: Res<AssetServer>) -> Result {
     info!("input: {}", args.input.display());
     let analysis = analysis::analyze_file(&args.input)?;
     debug!("analysis complete");
@@ -28,19 +31,31 @@ fn start_analysis(args: Res<Args>, mut commands: Commands,) -> Result {
     fs::write(&out_path, json)?;
 
     info!("wrote analysis: {}", out_path.display());
-    commands.insert_resource(CurrentSong { track_analysis: analysis, file_name: args.input.file_name().unwrap().to_string_lossy().to_string() });
+    let frames = derive_gameplay(&analysis);
+    let file_path = canonicalize(&args.input)?.to_string_lossy().to_string();
+    let song_asset = assets.add(SongAsset { path: file_path.clone() });
+    commands.insert_resource(CurrentSong {
+        track_analysis: analysis,
+        frames,
+        file_path: file_path,
+        time_seconds: 0.,
+        song_asset,
+    });
     commands.set_state(AppState::DebugUi);
     Ok(())
 }
 
 #[derive(Resource, Clone)]
 pub struct CurrentSong {
-    track_analysis: TrackAnalysis,
-    file_name: String,
+    pub track_analysis: TrackAnalysis,
+    pub frames: Vec<GameplayFrame>,
+    pub file_path: String,
+    pub time_seconds: f32,
+    pub song_asset: Handle<SongAsset>,
 }
 
 impl CurrentSong {
     pub fn file_name(&self) -> &str {
-        &self.file_name
+        &self.file_path
     }
 }

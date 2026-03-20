@@ -73,6 +73,7 @@ pub struct GameplayFrame {
 
     // sincronização rítmica
     pub beat_strength: f32,
+    pub frame: FrameFeatures,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

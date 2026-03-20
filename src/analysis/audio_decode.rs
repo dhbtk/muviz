@@ -22,7 +22,7 @@ pub struct DecodedAudio {
     pub samples_interleaved: Vec<f32>,
 }
 
-fn codec_registry() -> CodecRegistry {
+pub fn codec_registry() -> CodecRegistry {
     let mut codecs = CodecRegistry::new();
     codecs.register_all::<OpusDecoder>();
     codecs
