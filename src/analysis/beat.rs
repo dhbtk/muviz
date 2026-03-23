@@ -17,7 +17,7 @@ pub fn estimate_bpm_and_beats(
     let mut novelty: Vec<f32> = frames
         .iter()
         .map(|f| {
-            let low_flux = f.band_flux.get(0).copied().unwrap_or(0.0)
+            let low_flux = f.band_flux.first().copied().unwrap_or(0.0)
                 + f.band_flux.get(1).copied().unwrap_or(0.0);
 
             let mid_flux = f.band_flux.get(2).copied().unwrap_or(0.0)
@@ -64,18 +64,14 @@ fn remove_local_mean(signal: &mut [f32], window: usize) {
         let start = i.saturating_sub(window);
         let end = (i + window).min(len - 1);
 
-        let mean = signal[start..=end].iter().sum::<f32>()
-            / (end - start + 1) as f32;
+        let mean = signal[start..=end].iter().sum::<f32>() / (end - start + 1) as f32;
 
         signal[i] -= mean;
     }
 }
 
 fn normalize(signal: &mut [f32]) {
-    let max = signal
-        .iter()
-        .cloned()
-        .fold(0.0_f32, f32::max);
+    let max = signal.iter().cloned().fold(0.0_f32, f32::max);
 
     if max > 0.0 {
         for x in signal.iter_mut() {
@@ -84,10 +80,7 @@ fn normalize(signal: &mut [f32]) {
     }
 }
 
-fn estimate_bpm_autocorr(
-    novelty: &[f32],
-    seconds_per_frame: f32,
-) -> Option<f32> {
+fn estimate_bpm_autocorr(novelty: &[f32], seconds_per_frame: f32) -> Option<f32> {
     let min_bpm = 70.0;
     let max_bpm = 180.0;
 
@@ -122,11 +115,7 @@ fn estimate_bpm_autocorr(
     Some(60.0 / period_s)
 }
 
-fn align_beats(
-    novelty: &[f32],
-    bpm: f32,
-    seconds_per_frame: f32,
-) -> Vec<f32> {
+fn align_beats(novelty: &[f32], bpm: f32, seconds_per_frame: f32) -> Vec<f32> {
     let period_s = 60.0 / bpm;
     let period_frames = period_s / seconds_per_frame;
 

@@ -1,11 +1,11 @@
-use crate::analysis::model::{FrameFeatures, GameplayFrame, TrackAnalysis};
+use crate::analysis::model::{GameplayFrame, TrackAnalysis};
 
 pub fn derive_gameplay(analysis: &TrackAnalysis) -> Vec<GameplayFrame> {
     let frames = &analysis.frames;
     let mut out = Vec::with_capacity(frames.len());
 
     for f in frames {
-        let sub  = f.band_energy.get(0).copied().unwrap_or(0.0);
+        let sub = f.band_energy.first().copied().unwrap_or(0.0);
         let bass = f.band_energy.get(1).copied().unwrap_or(0.0);
         let low_mid = f.band_energy.get(2).copied().unwrap_or(0.0);
         let mid = f.band_energy.get(3).copied().unwrap_or(0.0);
@@ -21,16 +21,12 @@ pub fn derive_gameplay(analysis: &TrackAnalysis) -> Vec<GameplayFrame> {
         let energy = f.rms;
 
         // Eventos (ataques)
-        let event =
-            0.6 * f.spectral_flux +
-                0.3 * (f.band_flux.get(0).unwrap_or(&0.0)
-                    + f.band_flux.get(1).unwrap_or(&0.0)) +
-                0.1 * f.band_flux.get(4).unwrap_or(&0.0);
+        let event = 0.6 * f.spectral_flux
+            + 0.3 * (f.band_flux.first().unwrap_or(&0.0) + f.band_flux.get(1).unwrap_or(&0.0))
+            + 0.1 * f.band_flux.get(4).unwrap_or(&0.0);
 
         // Textura (ruído / distorção / pratos)
-        let texture =
-            0.7 * f.spectral_flatness +
-                0.3 * high;
+        let texture = 0.7 * f.spectral_flatness + 0.3 * high;
 
         let beat_strength = gaussian_beat_strength(f.time_s, &analysis.beat_times_s, 0.05);
 
@@ -47,7 +43,7 @@ pub fn derive_gameplay(analysis: &TrackAnalysis) -> Vec<GameplayFrame> {
         });
     }
 
-    normalize_gameplay(&mut out);
+    // normalize_gameplay(&mut out);
 
     out
 }

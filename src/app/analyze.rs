@@ -1,12 +1,11 @@
-use std::fs;
-use std::fs::canonicalize;
-use bevy::ecs::storage::Resources;
-use bevy::prelude::*;
 use crate::analysis;
 use crate::analysis::gameplay::derive_gameplay;
-use crate::analysis::model::{FrameFeatures, GameplayFrame, TrackAnalysis};
-use crate::app::{AppState, Args};
+use crate::analysis::model::{GameplayFrame, TrackAnalysis};
 use crate::app::playback::SongAsset;
+use crate::app::{AppState, Args};
+use bevy::prelude::*;
+use std::fs;
+use std::fs::canonicalize;
 
 pub struct AnalyzePlugin;
 
@@ -33,11 +32,13 @@ fn start_analysis(args: Res<Args>, mut commands: Commands, assets: Res<AssetServ
     info!("wrote analysis: {}", out_path.display());
     let frames = derive_gameplay(&analysis);
     let file_path = canonicalize(&args.input)?.to_string_lossy().to_string();
-    let song_asset = assets.add(SongAsset { path: file_path.clone() });
+    let song_asset = assets.add(SongAsset {
+        path: file_path.clone(),
+    });
     commands.insert_resource(CurrentSong {
         track_analysis: analysis,
         frames,
-        file_path: file_path,
+        file_path,
         time_seconds: 0.,
         song_asset,
     });

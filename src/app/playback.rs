@@ -1,20 +1,20 @@
+use crate::analysis::audio_decode::codec_registry;
+use bevy::audio::{Decodable, Source};
+use bevy::prelude::*;
 use std::fs::File;
 use std::path::Path;
 use std::time::Duration;
-use bevy::audio::{Decodable, Source};
-use bevy::prelude::*;
-use symphonia::core::audio::{SampleBuffer, Signal};
+use symphonia::core::audio::SampleBuffer;
 use symphonia::core::codecs::{Decoder, DecoderOptions};
 use symphonia::core::formats::{FormatOptions, FormatReader};
 use symphonia::core::io::MediaSourceStream;
 use symphonia::core::meta::MetadataOptions;
 use symphonia::core::probe::Hint;
-use symphonia::default::{get_codecs, get_probe};
-use crate::analysis::audio_decode::codec_registry;
+use symphonia::default::get_probe;
 
 #[derive(Asset, TypePath)]
 pub struct SongAsset {
-    pub path: String
+    pub path: String,
 }
 
 pub struct SongDecoder {
@@ -56,7 +56,9 @@ impl SongDecoder {
         let codec_params = &track.codec_params;
         let sample_rate = codec_params.sample_rate.unwrap_or(44100);
         let channels = codec_params.channels.map(|c| c.count() as u16).unwrap_or(2);
-        let total_duration = codec_params.n_frames.map(|f| Duration::from_secs_f64(f as f64 / sample_rate as f64));
+        let total_duration = codec_params
+            .n_frames
+            .map(|f| Duration::from_secs_f64(f as f64 / sample_rate as f64));
 
         let decoder = codec_registry().make(codec_params, &DecoderOptions::default())?;
 
@@ -114,10 +116,11 @@ impl Iterator for SongDecoder {
     type Item = f32;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.sample_buf.is_none() || self.sample_idx >= self.sample_buf.as_ref().unwrap().samples().len() {
-            if !self.refill_buffer() {
-                return None;
-            }
+        if (self.sample_buf.is_none()
+            || self.sample_idx >= self.sample_buf.as_ref().unwrap().samples().len())
+            && !self.refill_buffer()
+        {
+            return None;
         }
 
         let sample = self.sample_buf.as_ref().unwrap().samples()[self.sample_idx];

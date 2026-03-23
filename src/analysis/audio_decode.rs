@@ -1,7 +1,8 @@
-use anyhow::{anyhow, Context, Result};
-use tracing::instrument;
+use anyhow::{Context, Result, anyhow};
 use std::{fs::File, path::Path};
+use tracing::instrument;
 
+use symphonia::core::codecs::CodecRegistry;
 use symphonia::core::{
     audio::{AudioBufferRef, Signal},
     codecs::DecoderOptions,
@@ -11,8 +12,7 @@ use symphonia::core::{
     meta::MetadataOptions,
     probe::Hint,
 };
-use symphonia::core::codecs::CodecRegistry;
-use symphonia::default::{get_codecs, get_probe};
+use symphonia::default::get_probe;
 use symphonia_adapter_libopus::OpusDecoder;
 
 #[derive(Debug, Clone)]

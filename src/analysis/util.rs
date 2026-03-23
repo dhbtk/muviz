@@ -1,8 +1,8 @@
-use anyhow::{bail, Result};
-use tracing::instrument;
+use anyhow::{Result, bail};
 use audioadapter::Adapter;
-use audioadapter_buffers::direct::{SequentialSlice, SequentialSliceOfVecs};
+use audioadapter_buffers::direct::SequentialSlice;
 use rubato::{FixedSync, Resampler};
+use tracing::instrument;
 
 #[instrument(skip(input))]
 pub fn resample_mono(
@@ -23,7 +23,7 @@ pub fn resample_mono(
         chunk_size,
         1,
         1,
-        FixedSync::Input
+        FixedSync::Input,
     )?;
 
     let mut output = Vec::new();

@@ -1,60 +1,146 @@
+use crate::app::AppState;
+use crate::app::analyze::CurrentSong;
+use anyhow::anyhow;
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
-use crate::app::analyze::CurrentSong;
-use crate::app::AppState;
-
-use crate::app::playback::SongAsset;
 
 pub struct DebugUiPlugin;
 
 #[derive(Component)]
 pub struct SecondsCounter;
 
+#[derive(Component)]
+pub struct DebugInfoLabel;
+
 impl Plugin for DebugUiPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(OnEnter(AppState::DebugUi), start_debug_ui)
-            .add_systems(Update, (update_timing, draw_graphs).run_if(in_state(AppState::DebugUi)));
+            .add_systems(
+                Update,
+                (update_timing, update_debug_info, draw_graphs).run_if(in_state(AppState::DebugUi)),
+            );
     }
 }
 
 fn start_debug_ui(
     mut commands: Commands,
     current_song: Res<CurrentSong>,
-    windows: Query<&Window, With<PrimaryWindow>>,
+    _windows: Query<&Window, With<PrimaryWindow>>,
 ) {
     info!("starting ui for {}", current_song.file_name());
     commands.spawn(Camera2d);
 
     commands.spawn(AudioPlayer(current_song.song_asset.clone()));
 
-    commands.spawn((Text::new(current_song.file_name()), Node {
-        position_type: PositionType::Absolute,
-        top: px(10),
-        left: px(10),
-        ..default()
-    }));
+    commands.spawn((
+        Text::new(current_song.file_name()),
+        Node {
+            position_type: PositionType::Absolute,
+            top: Val::Px(10.0),
+            left: Val::Px(10.0),
+            ..default()
+        },
+    ));
 
     commands.spawn((
         SecondsCounter,
         Text::new(format!("{:.2}", current_song.time_seconds)),
         Node {
             position_type: PositionType::Absolute,
-            top: px(10),
-            right: px(10),
+            top: Val::Px(10.0),
+            right: Val::Px(10.0),
             ..default()
         },
-        ));
+    ));
+
+    commands.spawn((
+        DebugInfoLabel,
+        Text::new(""),
+        TextFont {
+            font_size: 14.0,
+            ..default()
+        },
+        Node {
+            position_type: PositionType::Absolute,
+            bottom: Val::Px(10.0),
+            left: Val::Px(10.0),
+            ..default()
+        },
+    ));
 }
 
 fn update_timing(
     mut current_song: ResMut<CurrentSong>,
     time: Res<Time>,
-    mut time_label_query: Query<&mut Text, With<SecondsCounter>>,
+    mut time_label_query: Query<&mut Text, (With<SecondsCounter>, Without<DebugInfoLabel>)>,
 ) -> Result {
     current_song.time_seconds += time.delta().as_secs_f32();
-    if let Ok(mut label) = time_label_query.single_mut() {
-        label.0 = format!("{:.2}", current_song.time_seconds);
+    let mut label = time_label_query.single_mut()?;
+    label.0 = format!("{:.2}", current_song.time_seconds);
+    Ok(())
+}
+
+fn update_debug_info(
+    current_song: Res<CurrentSong>,
+    mut debug_label_query: Query<&mut Text, With<DebugInfoLabel>>,
+) -> Result {
+    let t = current_song.time_seconds;
+    let frame = current_song
+        .frames
+        .iter()
+        .min_by_key(|f| ((f.time_s - t).abs() * 1000.0) as u32)
+        .ok_or(anyhow!("no frame found"))?;
+
+    let mut label = debug_label_query.single_mut()?;
+
+    let mut info = format!(
+        "time: {:.2}\n\
+            lane_left: {:.2}\n\
+            lane_center: {:.2}\n\
+            lane_right: {:.2}\n\
+            energy: {:.2}\n\
+            event: {:.2}\n\
+            texture: {:.2}\n\
+            beat_strength: {:.2}\n\
+            rms: {:.2}\n\
+            spectral_flux: {:.2}\n\
+            spectral_flatness: {:.2}",
+        frame.time_s,
+        frame.lane_left,
+        frame.lane_center,
+        frame.lane_right,
+        frame.energy,
+        frame.event,
+        frame.texture,
+        frame.beat_strength,
+        frame.frame.rms,
+        frame.frame.spectral_flux,
+        frame.frame.spectral_flatness,
+    );
+
+    if !frame.frame.band_energy.is_empty() {
+        info.push_str("\nband_energy: [");
+        for (i, e) in frame.frame.band_energy.iter().enumerate() {
+            if i > 0 {
+                info.push_str(", ");
+            }
+            info.push_str(&format!("{:.2}", e));
+        }
+        info.push(']');
     }
+
+    if !frame.frame.band_flux.is_empty() {
+        info.push_str("\nband_flux: [");
+        for (i, fl) in frame.frame.band_flux.iter().enumerate() {
+            if i > 0 {
+                info.push_str(", ");
+            }
+            info.push_str(&format!("{:.2}", fl));
+        }
+        info.push(']');
+    }
+
+    label.0 = info;
     Ok(())
 }
 
@@ -67,7 +153,7 @@ fn draw_graphs(
     let x_offset = -app_window.width() / 2.0 + 10.0;
     let y_offset = -app_window.height() / 2.0 + 40.0;
     let window = 5.0; // segundos visíveis
-    let futureness = 0.5;
+    let futureness = 0.;
     let start_time = data.time_seconds - (window - futureness);
     let end_time = data.time_seconds + futureness;
     if start_time > data.track_analysis.duration_s {
@@ -76,7 +162,7 @@ fn draw_graphs(
 
     let scale_x = (app_window.width() - 20.0) / window;
     // let scale_y = 50.0;
-    let placement_scale_y = (app_window.height() - 50.0) / 7.0;
+    let placement_scale_y = (app_window.height() - 50.0) / 10.0;
     let scale_y = placement_scale_y - 10.0;
 
     for i in 1..data.frames.len() {
@@ -102,46 +188,114 @@ fn draw_graphs(
 
         // lane_center
         gizmos.line_2d(
-            Vec2::new(x0, f0.lane_center * scale_y - y_offset - (placement_scale_y * 2.0)),
-            Vec2::new(x1, f1.lane_center * scale_y  - y_offset - (placement_scale_y * 2.0)),
+            Vec2::new(
+                x0,
+                f0.lane_center * scale_y - y_offset - (placement_scale_y * 2.0),
+            ),
+            Vec2::new(
+                x1,
+                f1.lane_center * scale_y - y_offset - (placement_scale_y * 2.0),
+            ),
             Color::linear_rgb(0.0, 1.0, 0.0),
         );
 
         // lane_right
         gizmos.line_2d(
-            Vec2::new(x0, f0.lane_right * scale_y - y_offset - (placement_scale_y * 3.0)),
-            Vec2::new(x1, f1.lane_right * scale_y - y_offset - (placement_scale_y * 3.0)),
+            Vec2::new(
+                x0,
+                f0.lane_right * scale_y - y_offset - (placement_scale_y * 3.0),
+            ),
+            Vec2::new(
+                x1,
+                f1.lane_right * scale_y - y_offset - (placement_scale_y * 3.0),
+            ),
             Color::linear_rgb(1.0, 0.0, 0.0),
         );
 
         // energy
         gizmos.line_2d(
-            Vec2::new(x0, f0.energy * scale_y - y_offset - (placement_scale_y * 4.0)),
-            Vec2::new(x1, f1.energy * scale_y - y_offset - (placement_scale_y * 4.0)),
+            Vec2::new(
+                x0,
+                f0.energy * scale_y - y_offset - (placement_scale_y * 4.0),
+            ),
+            Vec2::new(
+                x1,
+                f1.energy * scale_y - y_offset - (placement_scale_y * 4.0),
+            ),
             Color::WHITE,
         );
 
         // event (picos)
         gizmos.line_2d(
-            Vec2::new(x0, f0.event * scale_y - y_offset - (placement_scale_y * 5.0)),
-            Vec2::new(x1, f1.event * scale_y - y_offset - (placement_scale_y * 5.0)),
+            Vec2::new(
+                x0,
+                f0.event * scale_y - y_offset - (placement_scale_y * 5.0),
+            ),
+            Vec2::new(
+                x1,
+                f1.event * scale_y - y_offset - (placement_scale_y * 5.0),
+            ),
             Color::linear_rgb(1.0, 1.0, 0.0),
         );
 
         // texture
         gizmos.line_2d(
-            Vec2::new(x0, f0.texture * scale_y - y_offset - (placement_scale_y * 6.0)),
-            Vec2::new(x1, f1.texture * scale_y - y_offset - (placement_scale_y * 6.0)),
+            Vec2::new(
+                x0,
+                f0.texture * scale_y - y_offset - (placement_scale_y * 6.0),
+            ),
+            Vec2::new(
+                x1,
+                f1.texture * scale_y - y_offset - (placement_scale_y * 6.0),
+            ),
             Color::linear_rgb(0.0, 1.0, 1.0),
         );
 
         // beat strength
         gizmos.line_2d(
-            Vec2::new(x0, f0.beat_strength * scale_y - y_offset - (placement_scale_y * 7.0)),
-            Vec2::new(x1, f1.beat_strength * scale_y - y_offset - (placement_scale_y * 7.0)),
+            Vec2::new(
+                x0,
+                f0.beat_strength * scale_y - y_offset - (placement_scale_y * 7.0),
+            ),
+            Vec2::new(
+                x1,
+                f1.beat_strength * scale_y - y_offset - (placement_scale_y * 7.0),
+            ),
             Color::linear_rgb(1.0, 0.0, 1.0),
         );
 
+        // RMS
+        gizmos.line_2d(
+            Vec2::new(
+                x0,
+                f0.frame.rms * scale_y - y_offset - (placement_scale_y * 8.0),
+            ),
+            Vec2::new(
+                x1,
+                f1.frame.rms * scale_y - y_offset - (placement_scale_y * 8.0),
+            ),
+            Color::linear_rgb(0.5, 0.5, 0.5),
+        );
+
+        // spectral_flux
+        gizmos.line_2d(
+            Vec2::new(x0, 0. * scale_y - y_offset - (placement_scale_y * 9.0)),
+            Vec2::new(x1, 0. * scale_y - y_offset - (placement_scale_y * 9.0)),
+            Color::linear_rgb(1.0, 0.5, 0.0),
+        );
+
+        // spectral_flatness
+        gizmos.line_2d(
+            Vec2::new(
+                x0,
+                f0.frame.spectral_flatness * scale_y - y_offset - (placement_scale_y * 10.0),
+            ),
+            Vec2::new(
+                x1,
+                f1.frame.spectral_flatness * scale_y - y_offset - (placement_scale_y * 10.0),
+            ),
+            Color::linear_rgb(0.5, 1.0, 0.5),
+        );
     }
 
     for &beat_time in &data.track_analysis.beat_times_s {

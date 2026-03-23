@@ -22,12 +22,36 @@ impl Default for AnalysisConfig {
             window_size: 2048,
             hop_size: 512,
             bands: vec![
-                Band { name: "sub".into(),      low_hz: 20.0,   high_hz: 60.0 },
-                Band { name: "bass".into(),     low_hz: 60.0,   high_hz: 150.0 },
-                Band { name: "low_mid".into(),  low_hz: 150.0,  high_hz: 400.0 },
-                Band { name: "mid".into(),      low_hz: 400.0,  high_hz: 2_000.0 },
-                Band { name: "high_mid".into(), low_hz: 2_000.0, high_hz: 6_000.0 },
-                Band { name: "high".into(),     low_hz: 6_000.0, high_hz: 16_000.0 },
+                Band {
+                    name: "sub".into(),
+                    low_hz: 20.0,
+                    high_hz: 60.0,
+                },
+                Band {
+                    name: "bass".into(),
+                    low_hz: 60.0,
+                    high_hz: 150.0,
+                },
+                Band {
+                    name: "low_mid".into(),
+                    low_hz: 150.0,
+                    high_hz: 400.0,
+                },
+                Band {
+                    name: "mid".into(),
+                    low_hz: 400.0,
+                    high_hz: 2_000.0,
+                },
+                Band {
+                    name: "high_mid".into(),
+                    low_hz: 2_000.0,
+                    high_hz: 6_000.0,
+                },
+                Band {
+                    name: "high".into(),
+                    low_hz: 6_000.0,
+                    high_hz: 16_000.0,
+                },
             ],
         }
     }
@@ -74,9 +98,4 @@ pub struct GameplayFrame {
     // sincronização rítmica
     pub beat_strength: f32,
     pub frame: FrameFeatures,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct GameplayAnalysis {
-    pub frames: Vec<GameplayFrame>,
 }
