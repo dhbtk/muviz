@@ -7,6 +7,7 @@ use crate::app::debug_ui::DebugUiPlugin;
 use crate::app::playback::{PlaybackPlugin, SongAsset};
 use bevy::asset::UnapprovedPathMode;
 use bevy::audio::AddAudioSource;
+use bevy::log::{Level, LogPlugin};
 use bevy::prelude::*;
 use clap::Parser;
 use std::path::PathBuf;
@@ -23,6 +24,13 @@ pub fn run_app(args: Args) {
         .insert_resource(args)
         .add_plugins(
             DefaultPlugins
+                .set(LogPlugin {
+                    level: Level::DEBUG,
+                    filter:
+                        "info,symphonia_core=warn,symphonia_bundle_mp3=warn,wgpu=error,muviz=debug"
+                            .into(),
+                    ..default()
+                })
                 .set(WindowPlugin {
                     primary_window: Some(Window {
                         title: window_title,
@@ -46,10 +54,13 @@ pub fn run_app(args: Args) {
 
 #[derive(Debug, Parser, Resource, Clone)]
 pub struct Args {
-    input: PathBuf,
+    pub input: PathBuf,
 
     #[arg(short, long)]
-    output: Option<PathBuf>,
+    pub output: Option<PathBuf>,
+
+    #[arg(short, long)]
+    pub analyze_only: bool,
 }
 
 impl Args {

@@ -4,6 +4,7 @@ use crate::analysis::model::{GameplayFrame, TrackAnalysis};
 use crate::app::playback::SongAsset;
 use crate::app::{AppState, Args};
 use bevy::prelude::*;
+use serde::{Deserialize, Serialize};
 use std::fs;
 use std::fs::canonicalize;
 
@@ -16,8 +17,28 @@ impl Plugin for AnalyzePlugin {
 }
 
 fn start_analysis(args: Res<Args>, mut commands: Commands, assets: Res<AssetServer>) -> Result {
+    let (analysis, frames) = perform_analysis(&args)?;
+    let file_path = canonicalize(&args.input)?.to_string_lossy().to_string();
+    let song_asset = assets.add(SongAsset {
+        path: file_path.clone(),
+    });
+    let current_song = CurrentSong {
+        track_analysis: analysis,
+        frames,
+        file_path,
+        time_seconds: 0.,
+        song_asset,
+    };
+
+    commands.insert_resource(current_song);
+    commands.set_state(AppState::DebugUi);
+    Ok(())
+}
+
+pub fn perform_analysis(args: &Args) -> Result<(TrackAnalysis, Vec<GameplayFrame>)> {
     info!("input: {}", args.input.display());
     let analysis = analysis::analyze_file(&args.input)?;
+    let frames = derive_gameplay(&analysis);
     debug!("analysis complete");
 
     let out_path = args.output.clone().unwrap_or_else(|| {
@@ -25,25 +46,11 @@ fn start_analysis(args: Res<Args>, mut commands: Commands, assets: Res<AssetServ
         p.set_extension("analysis.json");
         p
     });
-
-    let json = serde_json::to_string_pretty(&analysis)?;
+    let json = serde_json::to_string_pretty(&PersistedAnalysis::from((&analysis, &frames)))?;
     fs::write(&out_path, json)?;
 
     info!("wrote analysis: {}", out_path.display());
-    let frames = derive_gameplay(&analysis);
-    let file_path = canonicalize(&args.input)?.to_string_lossy().to_string();
-    let song_asset = assets.add(SongAsset {
-        path: file_path.clone(),
-    });
-    commands.insert_resource(CurrentSong {
-        track_analysis: analysis,
-        frames,
-        file_path,
-        time_seconds: 0.,
-        song_asset,
-    });
-    commands.set_state(AppState::DebugUi);
-    Ok(())
+    Ok((analysis, frames))
 }
 
 #[derive(Resource, Clone)]
@@ -58,5 +65,20 @@ pub struct CurrentSong {
 impl CurrentSong {
     pub fn file_name(&self) -> &str {
         &self.file_path
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct PersistedAnalysis {
+    pub analysis: TrackAnalysis,
+    pub frames: Vec<GameplayFrame>,
+}
+
+impl From<(&TrackAnalysis, &Vec<GameplayFrame>)> for PersistedAnalysis {
+    fn from(analysis: (&TrackAnalysis, &Vec<GameplayFrame>)) -> Self {
+        Self {
+            analysis: analysis.0.clone(),
+            frames: analysis.1.clone(),
+        }
     }
 }

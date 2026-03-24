@@ -28,7 +28,7 @@ pub fn derive_gameplay(analysis: &TrackAnalysis) -> Vec<GameplayFrame> {
         // Textura (ruído / distorção / pratos)
         let texture = 0.7 * f.spectral_flatness + 0.3 * high;
 
-        let beat_strength = gaussian_beat_strength(f.time_s, &analysis.beat_times_s, 0.05);
+        let beat_strength = gaussian_beat_strength(f.time_s, &analysis.beat_times_s, 0.06);
 
         out.push(GameplayFrame {
             time_s: f.time_s,
@@ -43,7 +43,7 @@ pub fn derive_gameplay(analysis: &TrackAnalysis) -> Vec<GameplayFrame> {
         });
     }
 
-    // normalize_gameplay(&mut out);
+    normalize_gameplay(&mut out);
 
     out
 }
@@ -62,35 +62,7 @@ fn gaussian_beat_strength(time_s: f32, beat_times_s: &[f32], sigma_s: f32) -> f3
 }
 
 fn normalize_gameplay(frames: &mut [GameplayFrame]) {
-    fn norm(vals: &mut [f32]) {
-        let max = vals.iter().cloned().fold(0.0, f32::max);
-        if max > 0.0 {
-            for v in vals {
-                *v /= max;
-            }
-        }
-    }
-
-    let mut left: Vec<_> = frames.iter().map(|f| f.lane_left).collect();
-    let mut center: Vec<_> = frames.iter().map(|f| f.lane_center).collect();
-    let mut right: Vec<_> = frames.iter().map(|f| f.lane_right).collect();
-    let mut energy: Vec<_> = frames.iter().map(|f| f.energy).collect();
-    let mut event: Vec<_> = frames.iter().map(|f| f.event).collect();
-    let mut texture: Vec<_> = frames.iter().map(|f| f.texture).collect();
-
-    norm(&mut left);
-    norm(&mut center);
-    norm(&mut right);
-    norm(&mut energy);
-    norm(&mut event);
-    norm(&mut texture);
-
-    for (i, f) in frames.iter_mut().enumerate() {
-        f.lane_left = left[i];
-        f.lane_center = center[i];
-        f.lane_right = right[i];
-        f.energy = energy[i];
-        f.event = event[i];
-        f.texture = texture[i];
+    for f in frames {
+        f.normalize();
     }
 }

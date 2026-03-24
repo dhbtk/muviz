@@ -99,3 +99,18 @@ pub struct GameplayFrame {
     pub beat_strength: f32,
     pub frame: FrameFeatures,
 }
+
+impl GameplayFrame {
+    pub fn normalize(&mut self) {
+        self.lane_left /= 100_000.;
+        self.lane_center /= 60_000.;
+        self.lane_right /= 30_000.;
+        self.event /= 20_000.;
+        self.texture /= 10_000.;
+        self.lane_left = self.lane_left.min(1.0);
+        self.lane_center = self.lane_center.min(1.0);
+        self.lane_right = self.lane_right.min(1.0);
+        self.event = self.event.min(1.0);
+        self.texture = self.texture.min(1.0);
+    }
+}

@@ -1,4 +1,4 @@
-use anyhow::{Context, Result, anyhow};
+use anyhow::{anyhow, Context, Result};
 use std::{fs::File, path::Path};
 use tracing::instrument;
 
@@ -12,7 +12,7 @@ use symphonia::core::{
     meta::MetadataOptions,
     probe::Hint,
 };
-use symphonia::default::get_probe;
+use symphonia::default::{get_probe, register_enabled_codecs};
 use symphonia_adapter_libopus::OpusDecoder;
 
 #[derive(Debug, Clone)]
@@ -24,6 +24,7 @@ pub struct DecodedAudio {
 
 pub fn codec_registry() -> CodecRegistry {
     let mut codecs = CodecRegistry::new();
+    register_enabled_codecs(&mut codecs);
     codecs.register_all::<OpusDecoder>();
     codecs
 }
