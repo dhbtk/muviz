@@ -18,7 +18,9 @@ impl Plugin for AnalyzePlugin {
 
 fn start_analysis(args: Res<Args>, mut commands: Commands, assets: Res<AssetServer>) -> Result {
     let (analysis, frames) = perform_analysis(&args)?;
-    let file_path = canonicalize(&args.input)?.to_string_lossy().to_string();
+    let file_path = canonicalize(args.input_file_path())?
+        .to_string_lossy()
+        .to_string();
     let song_asset = assets.add(SongAsset {
         path: file_path.clone(),
     });
@@ -36,13 +38,13 @@ fn start_analysis(args: Res<Args>, mut commands: Commands, assets: Res<AssetServ
 }
 
 pub fn perform_analysis(args: &Args) -> Result<(TrackAnalysis, Vec<GameplayFrame>)> {
-    info!("input: {}", args.input.display());
-    let analysis = analysis::analyze_file(&args.input)?;
+    info!("input: {}", args.input_file_path().display());
+    let analysis = analysis::analyze_file(args.input_file_path().as_path())?;
     let frames = derive_gameplay(&analysis);
     debug!("analysis complete");
 
     let out_path = args.output.clone().unwrap_or_else(|| {
-        let mut p = args.input.clone();
+        let mut p = args.input_file_path().clone();
         p.set_extension("analysis.json");
         p
     });

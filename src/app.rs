@@ -1,5 +1,7 @@
 pub mod analyze;
+pub mod colors;
 pub mod debug_ui;
+pub mod file_picker;
 pub mod playback;
 
 use crate::app::analyze::AnalyzePlugin;
@@ -10,16 +12,10 @@ use bevy::audio::AddAudioSource;
 use bevy::log::{Level, LogPlugin};
 use bevy::prelude::*;
 use clap::Parser;
+use file_picker::FilePickerPlugin;
 use std::path::PathBuf;
 
 pub fn run_app(args: Args) {
-    let window_title = format!(
-        "muviz - {}",
-        args.input_file_path()
-            .file_name()
-            .unwrap_or_default()
-            .to_string_lossy()
-    );
     App::new()
         .insert_resource(args)
         .add_plugins(
@@ -33,7 +29,7 @@ pub fn run_app(args: Args) {
                 })
                 .set(WindowPlugin {
                     primary_window: Some(Window {
-                        title: window_title,
+                        title: "muviz".to_string(),
                         resolution: (1280, 720).into(),
                         ..default()
                     }),
@@ -46,6 +42,7 @@ pub fn run_app(args: Args) {
         )
         .init_state::<AppState>()
         .add_audio_source::<SongAsset>()
+        .add_plugins(FilePickerPlugin)
         .add_plugins(AnalyzePlugin)
         .add_plugins(DebugUiPlugin)
         .add_plugins(PlaybackPlugin)
@@ -54,7 +51,7 @@ pub fn run_app(args: Args) {
 
 #[derive(Debug, Parser, Resource, Clone)]
 pub struct Args {
-    pub input: PathBuf,
+    pub input: Option<PathBuf>,
 
     #[arg(short, long)]
     pub output: Option<PathBuf>,
@@ -64,14 +61,15 @@ pub struct Args {
 }
 
 impl Args {
-    pub fn input_file_path(&self) -> &PathBuf {
-        &self.input
+    pub fn input_file_path(&self) -> PathBuf {
+        self.input.clone().unwrap()
     }
 }
 
 #[derive(Clone, Eq, PartialEq, Hash, Debug, Default, States)]
 pub enum AppState {
     #[default]
+    FilePicker,
     Analyze,
     DebugUi,
 }

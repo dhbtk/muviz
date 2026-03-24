@@ -1,5 +1,5 @@
-use crate::app::AppState;
 use crate::app::analyze::CurrentSong;
+use crate::app::AppState;
 use anyhow::anyhow;
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
@@ -12,9 +12,16 @@ pub struct SecondsCounter;
 #[derive(Component)]
 pub struct DebugInfoLabel;
 
+#[derive(Component)]
+pub struct DebugUi;
+
+#[derive(Component)]
+pub struct SongPlayer;
+
 impl Plugin for DebugUiPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(OnEnter(AppState::DebugUi), start_debug_ui)
+            .add_systems(OnExit(AppState::DebugUi), teardown_debug_ui)
             .add_systems(
                 Update,
                 (update_timing, update_debug_info, draw_graphs).run_if(in_state(AppState::DebugUi)),
@@ -28,45 +35,52 @@ fn start_debug_ui(
     _windows: Query<&Window, With<PrimaryWindow>>,
 ) {
     info!("starting ui for {}", current_song.file_name());
-    commands.spawn(Camera2d);
-
-    commands.spawn(AudioPlayer(current_song.song_asset.clone()));
-
     commands.spawn((
-        Text::new(current_song.file_name()),
-        Node {
-            position_type: PositionType::Absolute,
-            top: Val::Px(10.0),
-            left: Val::Px(10.0),
-            ..default()
-        },
+        DebugUi,
+        Camera2d,
+        children![
+            (SongPlayer, AudioPlayer(current_song.song_asset.clone())),
+            (
+                Text::new(current_song.file_name()),
+                Node {
+                    position_type: PositionType::Absolute,
+                    top: Val::Px(10.0),
+                    left: Val::Px(10.0),
+                    ..default()
+                },
+            ),
+            (
+                SecondsCounter,
+                Text::new(format!("{:.2}", current_song.time_seconds)),
+                Node {
+                    position_type: PositionType::Absolute,
+                    top: Val::Px(10.0),
+                    right: Val::Px(10.0),
+                    ..default()
+                }
+            ),
+            (
+                DebugInfoLabel,
+                Text::new(""),
+                TextFont {
+                    font_size: 14.0,
+                    ..default()
+                },
+                Node {
+                    position_type: PositionType::Absolute,
+                    bottom: Val::Px(10.0),
+                    left: Val::Px(10.0),
+                    ..default()
+                }
+            )
+        ],
     ));
+}
 
-    commands.spawn((
-        SecondsCounter,
-        Text::new(format!("{:.2}", current_song.time_seconds)),
-        Node {
-            position_type: PositionType::Absolute,
-            top: Val::Px(10.0),
-            right: Val::Px(10.0),
-            ..default()
-        },
-    ));
-
-    commands.spawn((
-        DebugInfoLabel,
-        Text::new(""),
-        TextFont {
-            font_size: 14.0,
-            ..default()
-        },
-        Node {
-            position_type: PositionType::Absolute,
-            bottom: Val::Px(10.0),
-            left: Val::Px(10.0),
-            ..default()
-        },
-    ));
+fn teardown_debug_ui(mut commands: Commands, query: Query<Entity, With<DebugUi>>) -> Result {
+    let entity = query.single()?;
+    commands.entity(entity).despawn();
+    Ok(())
 }
 
 fn update_timing(
