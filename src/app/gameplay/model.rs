@@ -38,7 +38,7 @@ pub fn generate_track_points(
     let pitch_delta_decay = 0.025;
     let pitch_recentering_force = 0.0005;
     let pitch_limit = PI / 4.;
-    let roll_limit = PI / 8.;
+    let roll_limit = PI / 12.;
     let damping = 0.99;
     let springiness = 0.01;
 
@@ -74,7 +74,7 @@ pub fn generate_track_points(
         } else {
             pitch_delta -= pitch_recentering_force;
         }
-        let roll_delta = yaw_delta * 0.5;
+        let roll_delta = yaw_delta * 0.1;
         pitch += pitch_delta;
         yaw += yaw_delta * damping;
         roll += roll_delta;
@@ -82,16 +82,17 @@ pub fn generate_track_points(
         pitch += -pitch * springiness;
         roll = roll.clamp(-roll_limit, roll_limit) * damping;
         roll += -roll * springiness;
-        let new_rotation =
-            Quat::from_rotation_y(yaw) * Quat::from_rotation_x(pitch) * Quat::from_rotation_z(roll);
+        let new_rotation = Quat::from_rotation_y(yaw)
+            * Quat::from_rotation_x(pitch)
+            * Quat::from_rotation_z(-roll);
         rotation = rotation.slerp(new_rotation, damping);
-        let forward = rotation * Vec3::Z;
-        position += forward
-            * (z_step * ((frame.beat_strength.max(0.2) * 0.3) + (frame.energy.max(0.2) * 0.7)));
 
         let forward = rotation * Vec3::Z;
-        let right = rotation * Vec3::X;
-        let up = rotation * Vec3::Y;
+        let right = (rotation * -Vec3::X).normalize();
+        let up = right.cross(forward).normalize();
+
+        position += forward
+            * (z_step * ((frame.beat_strength.max(0.2) * 0.3) + (frame.energy.max(0.2) * 0.7)));
 
         points.push(TrackPoint {
             rotation,
@@ -102,27 +103,6 @@ pub fn generate_track_points(
         });
     }
 
-    for i in 1..points.len() {
-        let prev = &points[i - 1];
-        let curr_forward = points[i].forward;
-
-        // transportar o "up" ao longo da curva
-        let axis = prev.forward.cross(curr_forward);
-
-        let up = if axis.length_squared() > 1e-6 {
-            let angle = prev.forward.angle_between(curr_forward);
-            let rot = Quat::from_axis_angle(axis.normalize(), angle);
-            rot * prev.up
-        } else {
-            prev.up
-        };
-
-        let right = curr_forward.cross(up).normalize();
-        let up = right.cross(curr_forward).normalize();
-
-        points[i].right = right;
-        points[i].up = up;
-    }
     info!(
         "maximum Y: {}, minimum Y:{}",
         points

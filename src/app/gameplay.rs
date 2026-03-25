@@ -11,7 +11,7 @@ use crate::app::playback::SongAsset;
 use crate::app::{analyze, AppState, Args};
 use crate::{HOP_SIZE, SAMPLE_RATE};
 use bevy::camera::primitives::Aabb;
-use bevy::pbr::ExtendedMaterial;
+use bevy::pbr::{DefaultOpaqueRendererMethod, ExtendedMaterial};
 use bevy::prelude::*;
 use model::TrackPoint;
 use std::fs::canonicalize;

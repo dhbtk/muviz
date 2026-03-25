@@ -373,16 +373,18 @@ fn draw_graphs(
 fn draw_mini_map(
     mut gizmos: Gizmos,
     data: Res<CurrentSong>,
-    windows: Query<&Window, With<PrimaryWindow>>,
+    camera_query: Query<&Transform, With<Camera3d>>,
     _input: Res<ButtonInput<KeyCode>>,
 ) -> Result {
-    let Ok(app_window) = windows.single() else {
+    let camera_transform = if let Some(t) = camera_query.iter().next() {
+        t
+    } else {
         return Ok(());
     };
-    let width = 200.0;
-    let height = 200.0;
-    let x_offset = app_window.width() / 2.0 - width - 10.0;
-    let y_offset = -app_window.height() / 2.0 + 10.0;
+
+    let width = 10.0;
+    let height = 10.0;
+    let distance = 30.0;
 
     let (min_x, max_x) = data
         .track_points
@@ -406,31 +408,55 @@ fn draw_mini_map(
         return Ok(());
     }
 
-    // Proporcional scaling to fit within width/height and maintain aspect ratio
+    // Proportional scaling to fit within width/height and maintain aspect ratio
     let scale = (width / dx).min(height / dz);
+
+    let center_x = (min_x + max_x) / 2.0;
+    let center_z = (min_z + max_z) / 2.0;
+
+    let map_center = camera_transform.translation
+        + camera_transform.forward() * distance
+        + camera_transform.right() * (width * 0.5 + 10.0)
+        + camera_transform.down() * (height * 0.5 - 10.0);
+
+    let right = camera_transform.right();
+    let up = camera_transform.up();
+
+    let to_3d = |x: f32, z: f32| -> Vec3 {
+        let lx = (x - center_x) * scale;
+        let ly = (z - center_z) * scale;
+        map_center + right * lx + up * ly
+    };
 
     for i in 0..(data.track_points.len() - 1) {
         let f0 = &data.track_points[i];
         let f1 = &data.track_points[i + 1];
 
-        let x0 = (f0.position.x - min_x) * scale;
-        let x1 = (f1.position.x - min_x) * scale;
-        let y0 = (f0.position.z - min_z) * scale;
-        let y1 = (f1.position.z - min_z) * scale;
+        let p0 = to_3d(f0.position.x, f0.position.z);
+        let p1 = to_3d(f1.position.x, f1.position.z);
 
-        gizmos.line_2d(
-            Vec2::new(x_offset + x0, y_offset + y0),
-            Vec2::new(x_offset + x1, y_offset + y1),
-            Color::WHITE,
-        );
+        gizmos.line(p0, p1, Color::WHITE);
     }
+
     let current_position = data.sample_track_point(data.time_seconds).position;
-    let current_x = (current_position.x - min_x) * scale;
-    let current_z = (current_position.z - min_z) * scale;
-    gizmos.rect_2d(
-        Vec2::new(x_offset + current_x, y_offset + current_z),
-        Vec2::new(5.0, 5.0),
+    let current_p = to_3d(current_position.x, current_position.z);
+
+    let size = 0.2;
+    gizmos.line(
+        current_p - right * size,
+        current_p + right * size,
         Color::linear_rgb(1.0, 0.0, 0.0),
     );
+    gizmos.line(
+        current_p - up * size,
+        current_p + up * size,
+        Color::linear_rgb(1.0, 0.0, 0.0),
+    );
+    // gizmos.line(
+    //     current_p - camera_transform.forward() * size,
+    //     current_p + camera_transform.forward() * size,
+    //     Color::linear_rgb(1.0, 0.0, 0.0),
+    // );
+
     Ok(())
 }

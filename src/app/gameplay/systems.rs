@@ -109,7 +109,11 @@ pub fn spawn_entities(
         &asset_server,
         &mut meshes,
         &mut water_materials,
-        &data.track_bounding_box,
+        data.track_points
+            .iter()
+            .map(|p| p.position.y)
+            .reduce(f32::min)
+            .unwrap(),
     );
 
     commands.spawn(AudioPlayer(data.song_asset.clone()));

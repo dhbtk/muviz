@@ -48,7 +48,7 @@ pub fn spawn_water(
     asset_server: &AssetServer,
     meshes: &mut Assets<Mesh>,
     water_materials: &mut Assets<ExtendedMaterial<StandardMaterial, Water>>,
-    track_bounds: &Aabb,
+    track_y: f32,
 ) {
     commands.spawn((
         Mesh3d(meshes.add(Plane3d::new(Vec3::Y, Vec2::splat(1.0)))),
@@ -86,7 +86,7 @@ pub fn spawn_water(
         })),
         Transform {
             scale: Vec3::splat(60_000.0),
-            translation: Vec3::new(0.0, -track_bounds.half_extents.y * 2.0, 0.0),
+            translation: Vec3::new(0.0, track_y - 10.0, 0.0),
             ..default()
         },
     ));
