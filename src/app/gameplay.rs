@@ -1,0 +1,61 @@
+pub mod components;
+pub mod model;
+pub mod systems;
+
+use crate::analysis::model::{GameplayFrame, TrackAnalysis};
+use crate::app::gameplay::model::smooth_positions;
+use crate::app::gameplay::systems::{update_camera, update_playback};
+use crate::app::playback::SongAsset;
+use crate::app::{analyze, AppState, Args};
+use bevy::prelude::*;
+use model::TrackPoint;
+use std::fs::canonicalize;
+use systems::spawn_entities;
+
+pub struct GameplayPlugin;
+
+impl Plugin for GameplayPlugin {
+    fn build(&self, app: &mut App) {
+        app.add_systems(OnEnter(AppState::Gameplay), spawn_entities)
+            .add_systems(
+                Update,
+                (update_playback, update_camera).run_if(in_state(AppState::Gameplay)),
+            );
+    }
+}
+
+#[derive(Resource, Clone)]
+pub struct CurrentSong {
+    pub track_analysis: TrackAnalysis,
+    pub frames: Vec<GameplayFrame>,
+    pub track_points: Vec<TrackPoint>,
+    pub file_path: String,
+    pub time_seconds: f32,
+    pub current_frame: usize,
+    pub song_asset: Handle<SongAsset>,
+}
+
+impl CurrentSong {
+    pub fn new(args: &Args, song_asset: Handle<SongAsset>) -> Result<Self> {
+        let (track_analysis, frames) = analyze::perform_analysis(args)?;
+        let file_path = canonicalize(args.input_file_path())?
+            .to_string_lossy()
+            .to_string();
+        let mut track_points = model::generate_track_points(&track_analysis, &frames);
+        smooth_positions(&mut track_points, 0.3);
+
+        Ok(Self {
+            track_analysis,
+            frames,
+            file_path,
+            time_seconds: 0.,
+            song_asset,
+            track_points,
+            current_frame: 0,
+        })
+    }
+
+    pub fn file_name(&self) -> &str {
+        &self.file_path
+    }
+}

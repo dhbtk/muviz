@@ -1,6 +1,7 @@
 use crate::analysis;
 use crate::analysis::gameplay::derive_gameplay;
 use crate::analysis::model::{GameplayFrame, TrackAnalysis};
+use crate::app::gameplay::CurrentSong;
 use crate::app::playback::SongAsset;
 use crate::app::{AppState, Args};
 use bevy::prelude::*;
@@ -17,23 +18,17 @@ impl Plugin for AnalyzePlugin {
 }
 
 fn start_analysis(args: Res<Args>, mut commands: Commands, assets: Res<AssetServer>) -> Result {
-    let (analysis, frames) = perform_analysis(&args)?;
     let file_path = canonicalize(args.input_file_path())?
         .to_string_lossy()
         .to_string();
     let song_asset = assets.add(SongAsset {
         path: file_path.clone(),
     });
-    let current_song = CurrentSong {
-        track_analysis: analysis,
-        frames,
-        file_path,
-        time_seconds: 0.,
-        song_asset,
-    };
+
+    let current_song = CurrentSong::new(&args, song_asset)?;
 
     commands.insert_resource(current_song);
-    commands.set_state(AppState::DebugUi);
+    commands.set_state(AppState::Gameplay);
     Ok(())
 }
 
@@ -53,21 +48,6 @@ pub fn perform_analysis(args: &Args) -> Result<(TrackAnalysis, Vec<GameplayFrame
 
     info!("wrote analysis: {}", out_path.display());
     Ok((analysis, frames))
-}
-
-#[derive(Resource, Clone)]
-pub struct CurrentSong {
-    pub track_analysis: TrackAnalysis,
-    pub frames: Vec<GameplayFrame>,
-    pub file_path: String,
-    pub time_seconds: f32,
-    pub song_asset: Handle<SongAsset>,
-}
-
-impl CurrentSong {
-    pub fn file_name(&self) -> &str {
-        &self.file_path
-    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]

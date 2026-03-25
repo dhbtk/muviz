@@ -2,14 +2,17 @@ pub mod analyze;
 pub mod colors;
 pub mod debug_ui;
 pub mod file_picker;
+pub mod gameplay;
 pub mod playback;
 
 use crate::app::analyze::AnalyzePlugin;
 use crate::app::debug_ui::DebugUiPlugin;
+use crate::app::gameplay::GameplayPlugin;
 use crate::app::playback::{PlaybackPlugin, SongAsset};
 use bevy::asset::UnapprovedPathMode;
 use bevy::audio::AddAudioSource;
 use bevy::log::{Level, LogPlugin};
+use bevy::pbr::wireframe::WireframePlugin;
 use bevy::prelude::*;
 use clap::Parser;
 use file_picker::FilePickerPlugin;
@@ -46,6 +49,9 @@ pub fn run_app(args: Args) {
         .add_plugins(AnalyzePlugin)
         .add_plugins(DebugUiPlugin)
         .add_plugins(PlaybackPlugin)
+        .add_plugins(GameplayPlugin)
+        .add_plugins(WireframePlugin::default())
+        .add_systems(OnEnter(AppState::Initial), read_args)
         .run();
 }
 
@@ -69,7 +75,17 @@ impl Args {
 #[derive(Clone, Eq, PartialEq, Hash, Debug, Default, States)]
 pub enum AppState {
     #[default]
+    Initial,
     FilePicker,
     Analyze,
     DebugUi,
+    Gameplay,
+}
+
+fn read_args(args: Res<Args>, mut commands: Commands) {
+    if args.input.is_some() {
+        commands.set_state(AppState::Analyze);
+    } else {
+        commands.set_state(AppState::FilePicker);
+    }
 }

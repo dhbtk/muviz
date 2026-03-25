@@ -28,7 +28,7 @@ pub fn derive_gameplay(analysis: &TrackAnalysis) -> Vec<GameplayFrame> {
         // Textura (ruído / distorção / pratos)
         let texture = 0.7 * f.spectral_flatness + 0.3 * high;
 
-        let beat_strength = gaussian_beat_strength(f.time_s, &analysis.beat_times_s, 0.06);
+        let beat_strength = gaussian_beat_strength(f.time_s, &analysis.beat_times_s, 0.1);
 
         out.push(GameplayFrame {
             time_s: f.time_s,

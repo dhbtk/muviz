@@ -88,6 +88,7 @@ pub fn build_file_picker_ui(
     Ok(())
 }
 
+#[allow(clippy::type_complexity)]
 pub fn handle_list_item_interaction(
     mut commands: Commands,
     mut navigate_writer: MessageWriter<NavigateMessage>,

@@ -1,4 +1,4 @@
-use crate::app::analyze::CurrentSong;
+use crate::app::gameplay::CurrentSong;
 use crate::app::AppState;
 use anyhow::anyhow;
 use bevy::prelude::*;
@@ -20,11 +20,12 @@ pub struct SongPlayer;
 
 impl Plugin for DebugUiPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(OnEnter(AppState::DebugUi), start_debug_ui)
-            .add_systems(OnExit(AppState::DebugUi), teardown_debug_ui)
+        app.add_systems(OnEnter(AppState::Gameplay), start_debug_ui)
+            .add_systems(OnExit(AppState::Gameplay), teardown_debug_ui)
             .add_systems(
                 Update,
-                (update_timing, update_debug_info, draw_graphs).run_if(in_state(AppState::DebugUi)),
+                (update_timing, update_debug_info, draw_graphs)
+                    .run_if(in_state(AppState::Gameplay)),
             );
     }
 }
@@ -37,9 +38,13 @@ fn start_debug_ui(
     info!("starting ui for {}", current_song.file_name());
     commands.spawn((
         DebugUi,
-        Camera2d,
+        Node {
+            display: Display::Grid,
+            width: percent(100),
+            height: percent(100),
+            ..default()
+        },
         children![
-            (SongPlayer, AudioPlayer(current_song.song_asset.clone())),
             (
                 Text::new(current_song.file_name()),
                 Node {
@@ -162,8 +167,14 @@ fn draw_graphs(
     mut gizmos: Gizmos,
     data: Res<CurrentSong>,
     windows: Query<&Window, With<PrimaryWindow>>,
+    input: Res<ButtonInput<KeyCode>>,
 ) -> Result {
-    let app_window = windows.single()?;
+    let Ok(app_window) = windows.single() else {
+        return Ok(());
+    };
+    if !input.pressed(KeyCode::ShiftLeft) {
+        return Ok(());
+    }
     let x_offset = -app_window.width() / 2.0 + 10.0;
     let y_offset = -app_window.height() / 2.0 + 40.0;
     let window = 5.0; // segundos visíveis
