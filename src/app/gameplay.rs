@@ -15,7 +15,7 @@ use bevy::pbr::{DefaultOpaqueRendererMethod, ExtendedMaterial};
 use bevy::prelude::*;
 use model::TrackPoint;
 use std::fs::canonicalize;
-use systems::spawn_entities;
+use systems::{despawn_entities, spawn_entities};
 
 pub struct GameplayPlugin;
 
@@ -26,6 +26,7 @@ impl Plugin for GameplayPlugin {
             .insert_resource(GlobalAmbientLight::NONE)
             .add_plugins(MaterialPlugin::<ExtendedMaterial<StandardMaterial, Water>>::default())
             .add_systems(OnEnter(AppState::Gameplay), spawn_entities)
+            .add_systems(OnExit(AppState::Gameplay), despawn_entities)
             .add_systems(
                 Update,
                 (update_playback, update_camera).run_if(in_state(AppState::Gameplay)),
@@ -41,6 +42,7 @@ pub struct CurrentSong {
     pub file_path: String,
     pub time_seconds: f32,
     pub song_asset: Handle<SongAsset>,
+    pub paused: bool,
     pub track_bounding_box: Aabb,
 }
 
@@ -61,6 +63,7 @@ impl CurrentSong {
             song_asset,
             track_bounding_box: Self::track_bounding_box(&track_points),
             track_points,
+            paused: false,
         })
     }
 

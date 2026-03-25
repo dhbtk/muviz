@@ -1,12 +1,12 @@
-use crate::app::gameplay::components::{RailCamera, SongTrack};
+use crate::app::gameplay::components::{MainScene, RailCamera, SongPlayer, SongTrack};
 use crate::app::gameplay::model::generate_track_mesh;
 use crate::app::gameplay::ocean::{spawn_water, Water};
 use crate::app::gameplay::CurrentSong;
+use crate::app::AppState;
 use bevy::anti_alias::fxaa::Fxaa;
 use bevy::camera::Exposure;
 use bevy::core_pipeline::tonemapping::Tonemapping;
 use bevy::light::{AtmosphereEnvironmentMapLight, NotShadowCaster, VolumetricFog};
-use bevy::pbr::wireframe::Wireframe;
 use bevy::pbr::{
     Atmosphere, AtmosphereSettings, ExtendedMaterial, ScatteringMedium, ScreenSpaceReflections,
 };
@@ -25,6 +25,7 @@ pub fn spawn_entities(
 ) {
     let mesh = generate_track_mesh(&data.track_points, 18.0);
     commands.spawn((
+        MainScene,
         SongTrack,
         Mesh3d(meshes.add(mesh)),
         MeshMaterial3d(materials.add(StandardMaterial {
@@ -32,7 +33,6 @@ pub fn spawn_entities(
             perceptual_roughness: 0.9,
             ..default()
         })),
-        Wireframe,
     ));
 
     // DistanceFog {
@@ -47,6 +47,7 @@ pub fn spawn_entities(
     // },
 
     commands.spawn((
+        MainScene,
         RailCamera {
             height: 15.0,
             distance: 50.0,
@@ -82,6 +83,7 @@ pub fn spawn_entities(
     ));
 
     commands.spawn((
+        MainScene,
         DirectionalLight {
             color: Color::srgb(0.98, 0.95, 0.82),
             shadows_enabled: true,
@@ -93,6 +95,7 @@ pub fn spawn_entities(
 
     // Sky
     commands.spawn((
+        MainScene,
         Mesh3d(meshes.add(Cuboid::new(3.0, 1.0, 3.0))),
         MeshMaterial3d(materials.add(StandardMaterial {
             base_color: Srgba::hex("888888").unwrap().into(),
@@ -116,7 +119,13 @@ pub fn spawn_entities(
             .unwrap(),
     );
 
-    commands.spawn(AudioPlayer(data.song_asset.clone()));
+    commands.spawn((MainScene, SongPlayer, AudioPlayer(data.song_asset.clone())));
+}
+
+pub fn despawn_entities(mut commands: Commands, query: Query<Entity, With<MainScene>>) {
+    for entity in query.iter() {
+        commands.entity(entity).despawn();
+    }
 }
 
 pub fn update_camera(
@@ -155,11 +164,29 @@ pub fn update_camera(
 }
 
 pub fn update_playback(
+    mut commands: Commands,
     mut song: ResMut<CurrentSong>,
     time: Res<Time>,
     keyboard_input: Res<ButtonInput<KeyCode>>,
+    sink_query: Query<&AudioSink, With<SongPlayer>>,
 ) {
-    if !keyboard_input.pressed(KeyCode::Space) {
-        song.time_seconds += time.delta().as_secs_f32();
+    let Ok(sink) = sink_query.single() else {
+        return;
+    };
+    if keyboard_input.just_pressed(KeyCode::Space) {
+        song.paused = !song.paused;
+        if song.paused {
+            sink.pause();
+        } else {
+            sink.play();
+        }
+    }
+    if !song.paused {
+        song.time_seconds += time.delta_secs();
+    }
+    if song.time_seconds > song.frames.last().unwrap().time_s
+        || keyboard_input.just_pressed(KeyCode::Escape)
+    {
+        commands.set_state(AppState::FilePicker);
     }
 }

@@ -15,9 +15,6 @@ pub struct DebugInfoLabel;
 #[derive(Component)]
 pub struct DebugUi;
 
-#[derive(Component)]
-pub struct SongPlayer;
-
 impl Plugin for DebugUiPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(OnEnter(AppState::Gameplay), start_debug_ui)
@@ -109,13 +106,12 @@ fn update_debug_info(
 ) -> Result {
     let t = current_song.current_frame_t();
     let frame_index = t.floor() as usize;
-    let frame = current_song
-        .frames
-        .get(frame_index)
-        .ok_or_else(|| anyhow!("frame index out of bounds"))?;
+    let Some(frame) = current_song.frames.get(frame_index) else {
+        return Ok(());
+    };
     let track_point = current_song.sample_track_point(t);
     let previous_track_point = current_song.sample_track_point(t - 0.05);
-    let world_speed = track_point.position.distance(previous_track_point.position) / 0.05;
+    let world_speed = (track_point.position.distance(previous_track_point.position) / 0.05) * 3.6;
 
     let mut label = debug_label_query.single_mut()?;
     let euler = track_point.rotation.to_euler(EulerRot::YXZ);

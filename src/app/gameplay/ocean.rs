@@ -1,3 +1,4 @@
+use crate::app::gameplay::components::MainScene;
 use bevy::camera::primitives::Aabb;
 use bevy::color::palettes::basic::BLACK;
 use bevy::image::{
@@ -51,6 +52,7 @@ pub fn spawn_water(
     track_y: f32,
 ) {
     commands.spawn((
+        MainScene,
         Mesh3d(meshes.add(Plane3d::new(Vec3::Y, Vec2::splat(1.0)))),
         MeshMaterial3d(water_materials.add(ExtendedMaterial {
             base: StandardMaterial {

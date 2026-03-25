@@ -11,3 +11,9 @@ pub struct RailCamera {
 
 #[derive(Component)]
 pub struct SongTrack;
+
+#[derive(Component)]
+pub struct SongPlayer;
+
+#[derive(Component)]
+pub struct MainScene;
