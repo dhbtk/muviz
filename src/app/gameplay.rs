@@ -1,13 +1,17 @@
 pub mod components;
 pub mod model;
+pub mod ocean;
 pub mod systems;
 
 use crate::analysis::model::{GameplayFrame, TrackAnalysis};
 use crate::app::gameplay::model::smooth_positions;
+use crate::app::gameplay::ocean::Water;
 use crate::app::gameplay::systems::{update_camera, update_playback};
 use crate::app::playback::SongAsset;
 use crate::app::{analyze, AppState, Args};
 use crate::{HOP_SIZE, SAMPLE_RATE};
+use bevy::camera::primitives::Aabb;
+use bevy::pbr::ExtendedMaterial;
 use bevy::prelude::*;
 use model::TrackPoint;
 use std::fs::canonicalize;
@@ -17,7 +21,11 @@ pub struct GameplayPlugin;
 
 impl Plugin for GameplayPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(OnEnter(AppState::Gameplay), spawn_entities)
+        app.insert_resource(DefaultOpaqueRendererMethod::deferred())
+            .insert_resource(ClearColor(Color::BLACK))
+            .insert_resource(GlobalAmbientLight::NONE)
+            .add_plugins(MaterialPlugin::<ExtendedMaterial<StandardMaterial, Water>>::default())
+            .add_systems(OnEnter(AppState::Gameplay), spawn_entities)
             .add_systems(
                 Update,
                 (update_playback, update_camera).run_if(in_state(AppState::Gameplay)),
@@ -33,6 +41,7 @@ pub struct CurrentSong {
     pub file_path: String,
     pub time_seconds: f32,
     pub song_asset: Handle<SongAsset>,
+    pub track_bounding_box: Aabb,
 }
 
 impl CurrentSong {
@@ -50,6 +59,7 @@ impl CurrentSong {
             file_path,
             time_seconds: 0.,
             song_asset,
+            track_bounding_box: Self::track_bounding_box(&track_points),
             track_points,
         })
     }
@@ -73,5 +83,17 @@ impl CurrentSong {
 
     pub fn current_frame_t(&self) -> f32 {
         (self.time_seconds * SAMPLE_RATE as f32) / HOP_SIZE as f32
+    }
+
+    fn track_bounding_box(track_points: &[TrackPoint]) -> Aabb {
+        let mut min = Vec3::new(f32::MAX, f32::MAX, f32::MAX);
+        let mut max = Vec3::new(f32::MIN, f32::MIN, f32::MIN);
+
+        for point in track_points {
+            min = min.min(point.position);
+            max = max.max(point.position);
+        }
+
+        Aabb::from_min_max(min, max)
     }
 }

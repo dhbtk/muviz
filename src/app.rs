@@ -12,7 +12,6 @@ use crate::app::playback::{PlaybackPlugin, SongAsset};
 use bevy::asset::UnapprovedPathMode;
 use bevy::audio::AddAudioSource;
 use bevy::log::{Level, LogPlugin};
-use bevy::pbr::wireframe::WireframePlugin;
 use bevy::prelude::*;
 use clap::Parser;
 use file_picker::FilePickerPlugin;
@@ -50,7 +49,6 @@ pub fn run_app(args: Args) {
         .add_plugins(DebugUiPlugin)
         .add_plugins(PlaybackPlugin)
         .add_plugins(GameplayPlugin)
-        .add_plugins(WireframePlugin::default())
         .add_systems(OnEnter(AppState::Initial), read_args)
         .run();
 }

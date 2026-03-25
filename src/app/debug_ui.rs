@@ -24,7 +24,7 @@ impl Plugin for DebugUiPlugin {
             .add_systems(OnExit(AppState::Gameplay), teardown_debug_ui)
             .add_systems(
                 Update,
-                (update_timing, update_debug_info, draw_graphs)
+                (update_timing, update_debug_info, draw_graphs, draw_mini_map)
                     .run_if(in_state(AppState::Gameplay)),
             );
     }
@@ -38,6 +38,12 @@ fn start_debug_ui(
     info!("starting ui for {}", current_song.file_name());
     commands.spawn((
         DebugUi,
+        // Camera2d,
+        // Camera {
+        //     order: 1,
+        //     clear_color: ClearColorConfig::None,
+        //     ..default()
+        // },
         Node {
             display: Display::Grid,
             width: percent(100),
@@ -360,6 +366,71 @@ fn draw_graphs(
         Vec2::new(playhead_x, -y_offset),
         Vec2::new(playhead_x, -(app_window.height() - 50.0) - y_offset),
         Color::WHITE,
+    );
+    Ok(())
+}
+
+fn draw_mini_map(
+    mut gizmos: Gizmos,
+    data: Res<CurrentSong>,
+    windows: Query<&Window, With<PrimaryWindow>>,
+    _input: Res<ButtonInput<KeyCode>>,
+) -> Result {
+    let Ok(app_window) = windows.single() else {
+        return Ok(());
+    };
+    let width = 200.0;
+    let height = 200.0;
+    let x_offset = app_window.width() / 2.0 - width - 10.0;
+    let y_offset = -app_window.height() / 2.0 + 10.0;
+
+    let (min_x, max_x) = data
+        .track_points
+        .iter()
+        .map(|p| p.position.x)
+        .fold((f32::MAX, f32::MIN), |(min, max), x| {
+            (min.min(x), max.max(x))
+        });
+
+    let (min_z, max_z) = data
+        .track_points
+        .iter()
+        .map(|p| p.position.z)
+        .fold((f32::MAX, f32::MIN), |(min, max), z| {
+            (min.min(z), max.max(z))
+        });
+
+    let dx = max_x - min_x;
+    let dz = max_z - min_z;
+    if dx == 0. || dz == 0. {
+        return Ok(());
+    }
+
+    // Proporcional scaling to fit within width/height and maintain aspect ratio
+    let scale = (width / dx).min(height / dz);
+
+    for i in 0..(data.track_points.len() - 1) {
+        let f0 = &data.track_points[i];
+        let f1 = &data.track_points[i + 1];
+
+        let x0 = (f0.position.x - min_x) * scale;
+        let x1 = (f1.position.x - min_x) * scale;
+        let y0 = (f0.position.z - min_z) * scale;
+        let y1 = (f1.position.z - min_z) * scale;
+
+        gizmos.line_2d(
+            Vec2::new(x_offset + x0, y_offset + y0),
+            Vec2::new(x_offset + x1, y_offset + y1),
+            Color::WHITE,
+        );
+    }
+    let current_position = data.sample_track_point(data.time_seconds).position;
+    let current_x = (current_position.x - min_x) * scale;
+    let current_z = (current_position.z - min_z) * scale;
+    gizmos.rect_2d(
+        Vec2::new(x_offset + current_x, y_offset + current_z),
+        Vec2::new(5.0, 5.0),
+        Color::linear_rgb(1.0, 0.0, 0.0),
     );
     Ok(())
 }
