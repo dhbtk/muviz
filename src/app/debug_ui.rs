@@ -89,11 +89,9 @@ fn teardown_debug_ui(mut commands: Commands, query: Query<Entity, With<DebugUi>>
 }
 
 fn update_timing(
-    mut current_song: ResMut<CurrentSong>,
-    time: Res<Time>,
+    current_song: Res<CurrentSong>,
     mut time_label_query: Query<&mut Text, (With<SecondsCounter>, Without<DebugInfoLabel>)>,
 ) -> Result {
-    current_song.time_seconds += time.delta().as_secs_f32();
     let mut label = time_label_query.single_mut()?;
     label.0 = format!("{:.2}", current_song.time_seconds);
     Ok(())
@@ -103,17 +101,28 @@ fn update_debug_info(
     current_song: Res<CurrentSong>,
     mut debug_label_query: Query<&mut Text, With<DebugInfoLabel>>,
 ) -> Result {
-    let t = current_song.time_seconds;
+    let t = current_song.current_frame_t();
+    let frame_index = t.floor() as usize;
     let frame = current_song
         .frames
-        .iter()
-        .min_by_key(|f| ((f.time_s - t).abs() * 1000.0) as u32)
-        .ok_or(anyhow!("no frame found"))?;
+        .get(frame_index)
+        .ok_or_else(|| anyhow!("frame index out of bounds"))?;
+    let track_point = current_song.sample_track_point(t);
+    let previous_track_point = current_song.sample_track_point(t - 0.05);
+    let world_speed = track_point.position.distance(previous_track_point.position) / 0.05;
 
     let mut label = debug_label_query.single_mut()?;
+    let euler = track_point.rotation.to_euler(EulerRot::YXZ);
 
     let mut info = format!(
         "time: {:.2}\n\
+            world_speed: {:.2}\n\
+            pos: {:.1}\n\
+            yaw: {:.1} roll: {:.1} pitch: {:.1}\n\
+            rot: {:.1}\n\
+            forward: {}\n\
+            right: {}\n\
+            up: {}\n\
             lane_left: {:.2}\n\
             lane_center: {:.2}\n\
             lane_right: {:.2}\n\
@@ -125,6 +134,15 @@ fn update_debug_info(
             spectral_flux: {:.2}\n\
             spectral_flatness: {:.2}",
         frame.time_s,
+        world_speed,
+        track_point.position,
+        euler.0.to_degrees(),
+        euler.1.to_degrees(),
+        euler.2.to_degrees(),
+        track_point.rotation,
+        track_point.forward,
+        track_point.right,
+        track_point.up,
         frame.lane_left,
         frame.lane_center,
         frame.lane_right,

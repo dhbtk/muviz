@@ -7,6 +7,7 @@ use crate::app::gameplay::model::smooth_positions;
 use crate::app::gameplay::systems::{update_camera, update_playback};
 use crate::app::playback::SongAsset;
 use crate::app::{analyze, AppState, Args};
+use crate::{HOP_SIZE, SAMPLE_RATE};
 use bevy::prelude::*;
 use model::TrackPoint;
 use std::fs::canonicalize;
@@ -31,7 +32,6 @@ pub struct CurrentSong {
     pub track_points: Vec<TrackPoint>,
     pub file_path: String,
     pub time_seconds: f32,
-    pub current_frame: usize,
     pub song_asset: Handle<SongAsset>,
 }
 
@@ -51,11 +51,27 @@ impl CurrentSong {
             time_seconds: 0.,
             song_asset,
             track_points,
-            current_frame: 0,
         })
     }
 
     pub fn file_name(&self) -> &str {
         &self.file_path
+    }
+
+    pub fn sample_track_point(&self, t: f32) -> TrackPoint {
+        let i = t.floor() as usize;
+        let frac = t.fract();
+
+        let i0 = i.min(self.track_points.len() - 1);
+        let i1 = (i + 1).min(self.track_points.len() - 1);
+
+        let p0 = &self.track_points[i0];
+        let p1 = &self.track_points[i1];
+
+        p0.lerp(p1, frac)
+    }
+
+    pub fn current_frame_t(&self) -> f32 {
+        (self.time_seconds * SAMPLE_RATE as f32) / HOP_SIZE as f32
     }
 }

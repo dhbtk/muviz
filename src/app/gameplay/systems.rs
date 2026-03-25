@@ -1,7 +1,6 @@
 use crate::app::gameplay::components::{RailCamera, SongTrack};
-use crate::app::gameplay::model::{generate_track_mesh, TrackPoint};
+use crate::app::gameplay::model::generate_track_mesh;
 use crate::app::gameplay::CurrentSong;
-use crate::{HOP_SIZE, SAMPLE_RATE};
 use bevy::pbr::wireframe::Wireframe;
 use bevy::prelude::*;
 
@@ -63,13 +62,11 @@ pub fn update_camera(
     time: Res<Time>,
     mut query: Query<(&mut RailCamera, &mut Transform)>,
 ) {
-    let points = &song.track_points;
-
     for (mut cam, mut transform) in query.iter_mut() {
-        let t = track_t_from_time(song.time_seconds);
+        let t = song.current_frame_t();
 
-        let current = sample_track(points, t);
-        let ahead = sample_track(points, t + cam.look_ahead);
+        let current = song.sample_track_point(t);
+        let ahead = song.sample_track_point(t + cam.look_ahead);
 
         let cam_pos = current.position - current.forward * cam.distance + current.up * cam.height;
         let target = ahead.position;
@@ -95,33 +92,12 @@ pub fn update_camera(
     }
 }
 
-pub fn update_playback(mut song: ResMut<CurrentSong>, time: Res<Time>) {
-    song.time_seconds += time.delta().as_secs_f32();
-}
-
-fn sample_track(points: &[TrackPoint], t: f32) -> TrackPoint {
-    let i = t.floor() as usize;
-    let frac = t.fract();
-
-    let i0 = i.min(points.len() - 1);
-    let i1 = (i + 1).min(points.len() - 1);
-
-    let p0 = &points[i0];
-    let p1 = &points[i1];
-
-    let position = p0.position.lerp(p1.position, frac);
-    let forward = p0.forward.lerp(p1.forward, frac).normalize();
-    let right = p0.right.lerp(p1.right, frac).normalize();
-    let up = p0.up.lerp(p1.up, frac).normalize();
-
-    TrackPoint {
-        position,
-        forward,
-        right,
-        up,
+pub fn update_playback(
+    mut song: ResMut<CurrentSong>,
+    time: Res<Time>,
+    keyboard_input: Res<ButtonInput<KeyCode>>,
+) {
+    if !keyboard_input.pressed(KeyCode::Space) {
+        song.time_seconds += time.delta().as_secs_f32();
     }
-}
-
-fn track_t_from_time(time_s: f32) -> f32 {
-    (time_s * SAMPLE_RATE as f32) / HOP_SIZE as f32
 }
