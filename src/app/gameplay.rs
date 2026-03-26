@@ -4,13 +4,14 @@ pub mod ocean;
 pub mod systems;
 
 use crate::analysis::model::{GameplayFrame, TrackAnalysis};
-use crate::app::gameplay::model::smooth_positions;
+use crate::app::gameplay::model::{resample_track_equidistant_points, smooth_positions};
 use crate::app::gameplay::ocean::Water;
-use crate::app::gameplay::systems::{update_camera, update_playback};
+use crate::app::gameplay::systems::{update_camera, update_playback, update_streetlights};
 use crate::app::playback::SongAsset;
 use crate::app::{analyze, AppState, Args};
 use crate::{HOP_SIZE, SAMPLE_RATE};
 use bevy::camera::primitives::Aabb;
+use bevy::math::NormedVectorSpace;
 use bevy::pbr::{DefaultOpaqueRendererMethod, ExtendedMaterial};
 use bevy::prelude::*;
 use model::TrackPoint;
@@ -29,7 +30,8 @@ impl Plugin for GameplayPlugin {
             .add_systems(OnExit(AppState::Gameplay), despawn_entities)
             .add_systems(
                 Update,
-                (update_playback, update_camera).run_if(in_state(AppState::Gameplay)),
+                (update_playback, update_camera, update_streetlights)
+                    .run_if(in_state(AppState::Gameplay)),
             );
     }
 }
@@ -54,6 +56,7 @@ impl CurrentSong {
             .to_string();
         let mut track_points = model::generate_track_points(&track_analysis, &frames);
         smooth_positions(&mut track_points, 0.3);
+        let track_points = resample_track_equidistant_points(&track_points, 1.0);
 
         Ok(Self {
             track_analysis,
@@ -63,7 +66,7 @@ impl CurrentSong {
             song_asset,
             track_bounding_box: Self::track_bounding_box(&track_points),
             track_points,
-            paused: false,
+            paused: true,
         })
     }
 
@@ -86,6 +89,19 @@ impl CurrentSong {
 
     pub fn current_frame_t(&self) -> f32 {
         (self.time_seconds * SAMPLE_RATE as f32) / HOP_SIZE as f32
+    }
+
+    pub fn nearest_frame(&self, pos: Vec3) -> &GameplayFrame {
+        let mut min_dist = f32::MAX;
+        let mut min_index = 0;
+        for (i, _frame) in self.frames.iter().enumerate() {
+            let dist = self.track_points[i].position.distance(pos);
+            if dist < min_dist {
+                min_dist = dist;
+                min_index = i;
+            }
+        }
+        &self.frames[min_index]
     }
 
     fn track_bounding_box(track_points: &[TrackPoint]) -> Aabb {

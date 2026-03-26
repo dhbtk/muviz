@@ -17,3 +17,6 @@ pub struct SongPlayer;
 
 #[derive(Component)]
 pub struct MainScene;
+
+#[derive(Component)]
+pub struct Streetlight;

@@ -109,9 +109,15 @@ fn update_debug_info(
     let Some(frame) = current_song.frames.get(frame_index) else {
         return Ok(());
     };
-    let track_point = current_song.sample_track_point(t);
-    let previous_track_point = current_song.sample_track_point(t - 0.05);
-    let world_speed = (track_point.position.distance(previous_track_point.position) / 0.05) * 3.6;
+    let previous_frame = current_song
+        .frames
+        .get(frame_index.saturating_sub(1))
+        .unwrap();
+    let track_point = &current_song.track_points[frame_index];
+    let previous_track_point = &current_song.track_points[frame_index.saturating_sub(1)];
+    let world_speed = (track_point.position.distance(previous_track_point.position)
+        / (frame.time_s - previous_frame.time_s))
+        * 3.6;
 
     let mut label = debug_label_query.single_mut()?;
     let euler = track_point.rotation.to_euler(EulerRot::YXZ);

@@ -47,12 +47,17 @@ impl Default for FilePicker {
     }
 }
 
+const PLAYABLE_EXTENSIONS: [&str; 5] = ["mp3", "ogg", "wav", "flac", "opus"];
+
 impl FilePicker {
     pub fn refresh(&mut self) -> Result {
         let mut entries = Vec::new();
         for entry in std::fs::read_dir(&self.current_dir)?.flatten() {
             let path = entry.path();
             if hf::is_hidden(&path)? {
+                continue;
+            }
+            if !path.is_dir() && !self.is_playable_file(&path) {
                 continue;
             }
             entries.push(DirectoryEntry {
@@ -68,5 +73,12 @@ impl FilePicker {
 
     pub fn select_file(&mut self, path: PathBuf) {
         self.selected_file = Some(path);
+    }
+
+    fn is_playable_file(&self, path: &Path) -> bool {
+        path.extension().is_some_and(|ext| {
+            let ext = ext.to_str().unwrap_or("").to_lowercase();
+            PLAYABLE_EXTENSIONS.contains(&ext.as_str())
+        })
     }
 }

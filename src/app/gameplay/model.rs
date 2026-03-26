@@ -31,13 +31,13 @@ pub fn generate_track_points(
     let mut points: Vec<TrackPoint> = Vec::with_capacity(frames.len());
     let bps = analysis.estimated_bpm.unwrap_or(120.0) / 60.;
 
-    let z_step = 3.0;
+    let z_step = 9.0;
     let height_scale = 0.06;
     let curve_scale = 0.033;
     let yaw_delta_decay = 0.0001;
-    let pitch_delta_decay = 0.025;
-    let pitch_recentering_force = 0.0005;
-    let pitch_limit = PI / 4.;
+    let pitch_delta_decay = 0.012;
+    let pitch_recentering_force = 0.0002;
+    let pitch_limit = PI / 6.;
     let roll_limit = PI / 12.;
     let damping = 0.99;
     let springiness = 0.01;
@@ -55,9 +55,9 @@ pub fn generate_track_points(
             yaw_delta = -yaw_delta;
         }
         if yaw_delta > 0. {
-            yaw_delta = 0.0_f32.max(yaw_delta - yaw_delta_decay).min(0.25);
+            yaw_delta = 0.0_f32.max(yaw_delta - yaw_delta_decay).min(0.15);
         } else if yaw_delta < 0. {
-            yaw_delta = 0.0_f32.min(yaw_delta + yaw_delta_decay).max(-0.25);
+            yaw_delta = 0.0_f32.min(yaw_delta + yaw_delta_decay).max(-0.15);
         }
         let mut pitch_delta = (frame.energy * 0.3 + frame.lane_center * 0.7) * height_scale;
         // - (frame.beat_strength * frame.energy * -0.02);
@@ -65,9 +65,9 @@ pub fn generate_track_points(
             pitch_delta = -pitch_delta;
         }
         if pitch_delta > 0. {
-            pitch_delta = 0.0_f32.max(pitch_delta - pitch_delta_decay).min(0.05);
+            pitch_delta = 0.0_f32.max(pitch_delta - pitch_delta_decay).min(0.02);
         } else if pitch_delta < 0. {
-            pitch_delta = 0.0_f32.min(pitch_delta + pitch_delta_decay).max(-0.05);
+            pitch_delta = 0.0_f32.min(pitch_delta + pitch_delta_decay).max(-0.02);
         }
         if position.y > 0. {
             pitch_delta += pitch_recentering_force;
@@ -92,7 +92,7 @@ pub fn generate_track_points(
         let up = right.cross(forward).normalize();
 
         position += forward
-            * (z_step * ((frame.beat_strength.max(0.2) * 0.3) + (frame.energy.max(0.2) * 0.7)));
+            * (z_step * (frame.beat_strength * 0.3 + frame.energy * 0.7 + frame.lane_center * 0.7));
 
         points.push(TrackPoint {
             rotation,
@@ -130,38 +130,67 @@ pub fn smooth_positions(points: &mut [TrackPoint], strength: f32) {
     }
 }
 
-pub fn generate_track_mesh(points: &[TrackPoint], width: f32) -> Mesh {
-    let mut positions = Vec::<[f32; 3]>::new();
-    let mut normals = Vec::<[f32; 3]>::new();
-    let mut uvs = Vec::<[f32; 2]>::new();
-    let mut indices = Vec::<u32>::new();
+pub fn generate_track_mesh(points: &[TrackPoint]) -> Mesh {
+    let track_shape = vec![
+        Vec2::new(-9.0, 0.0),
+        Vec2::new(-3.0, 0.0),
+        Vec2::new(3.0, 0.0),
+        Vec2::new(9.0, 0.0),
+        Vec2::new(9.0, -0.5),
+        Vec2::new(0.0, -0.5),
+        Vec2::new(-9.0, -0.5),
+        Vec2::new(-9.0, 0.0),
+    ];
+    extrude_along_track(points, &track_shape)
+}
 
-    for (i, p) in points.iter().enumerate() {
-        let left = p.position - p.right * width * 0.5;
-        let right = p.position + p.right * width * 0.5;
+pub fn generate_viaduct_mesh(points: &[TrackPoint]) -> Mesh {
+    let track_shape = vec![
+        Vec2::new(9.0, 0.0),
+        Vec2::new(9.0, 0.5),
+        Vec2::new(12.0, 0.0),
+        Vec2::new(12.0, 0.5),
+        Vec2::new(12.0, -4.0),
+        Vec2::new(0.0, -6.0),
+        Vec2::new(-12.0, -4.0),
+        Vec2::new(-12.0, 0.5),
+        Vec2::new(-9.0, 0.5),
+        Vec2::new(-9.0, 0.0),
+    ];
+    extrude_along_track(points, &track_shape)
+}
 
-        positions.push(left.into());
-        positions.push(right.into());
+pub fn extrude_along_track(frames: &[TrackPoint], shape: &[Vec2]) -> Mesh {
+    let mut positions = vec![];
+    let mut normals = vec![];
+    let mut uvs = vec![];
+    let mut indices = vec![];
 
-        normals.push(p.up.into());
-        normals.push(p.up.into());
+    let shape_len = shape.len();
 
-        let v = i as f32 / points.len() as f32;
+    for (i, frame) in frames.iter().enumerate() {
+        for (j, p) in shape.iter().enumerate() {
+            let world_pos = frame.position + frame.right * p.x + frame.up * p.y;
 
-        uvs.push([0.0, v]);
-        uvs.push([1.0, v]);
+            positions.push(world_pos.to_array());
+
+            normals.push(frame.up.to_array());
+
+            uvs.push([j as f32 / shape_len as f32, i as f32 / frames.len() as f32]);
+        }
     }
 
-    for i in 0..points.len() - 1 {
-        let base = (i * 2) as u32;
+    // triangulação
+    for i in 0..frames.len() - 1 {
+        for j in 0..shape_len - 1 {
+            let a = (i * shape_len + j) as u32;
+            let b = a + 1;
+            let c = a + shape_len as u32;
+            let d = c + 1;
 
-        indices.push(base);
-        indices.push(base + 1);
-        indices.push(base + 2);
-
-        indices.push(base + 1);
-        indices.push(base + 3);
-        indices.push(base + 2);
+            indices.extend_from_slice(&[a, b, c]);
+            indices.extend_from_slice(&[b, d, c]);
+        }
     }
 
     let mut mesh = Mesh::new(PrimitiveTopology::TriangleList, Default::default());
@@ -172,4 +201,36 @@ pub fn generate_track_mesh(points: &[TrackPoint], width: f32) -> Mesh {
     mesh.insert_indices(Indices::U32(indices));
 
     mesh
+}
+
+pub fn resample_track_equidistant_points(points: &[TrackPoint], distance: f32) -> Vec<TrackPoint> {
+    if points.len() < 2 || distance <= 0.0 {
+        return points.to_vec();
+    }
+
+    let mut result = Vec::new();
+    result.push(points[0].clone());
+
+    let mut accumulated_distance = 0.0;
+    let mut target_distance = distance;
+
+    for i in 0..points.len() - 1 {
+        let p1 = &points[i];
+        let p2 = &points[i + 1];
+        let segment_len = p1.position.distance(p2.position);
+
+        if segment_len == 0.0 {
+            continue;
+        }
+
+        while accumulated_distance + segment_len >= target_distance {
+            let t = (target_distance - accumulated_distance) / segment_len;
+            result.push(p1.lerp(p2, t));
+            target_distance += distance;
+        }
+
+        accumulated_distance += segment_len;
+    }
+
+    result
 }
