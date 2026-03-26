@@ -7,7 +7,6 @@ pub mod playback;
 
 use crate::app::analyze::AnalyzePlugin;
 use crate::app::debug_ui::DebugUiPlugin;
-use crate::app::gameplay::GameplayPlugin;
 use crate::app::playback::{PlaybackPlugin, SongAsset};
 use bevy::asset::UnapprovedPathMode;
 use bevy::audio::AddAudioSource;
@@ -15,7 +14,8 @@ use bevy::log::{Level, LogPlugin};
 use bevy::prelude::*;
 use bevy::window::WindowMode;
 use clap::Parser;
-use file_picker::FilePickerPlugin;
+use file_picker::plugin::FilePickerPlugin;
+use gameplay::plugin::GameplayPlugin;
 use std::path::PathBuf;
 
 pub fn run_app(args: Args) {

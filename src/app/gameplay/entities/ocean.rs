@@ -1,4 +1,5 @@
-use crate::app::gameplay::components::MainScene;
+use crate::app::gameplay::current_song::CurrentSong;
+use crate::app::gameplay::entities::MainScene;
 use bevy::camera::primitives::Aabb;
 use bevy::color::palettes::basic::BLACK;
 use bevy::image::{
@@ -45,12 +46,13 @@ impl MaterialExtension for Water {
 
 // Spawns the water plane.
 pub fn spawn_water(
-    commands: &mut Commands,
-    asset_server: &AssetServer,
-    meshes: &mut Assets<Mesh>,
-    water_materials: &mut Assets<ExtendedMaterial<StandardMaterial, Water>>,
-    track_y: f32,
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut water_materials: ResMut<Assets<ExtendedMaterial<StandardMaterial, Water>>>,
+    current_song: Res<CurrentSong>,
 ) {
+    let track_y = current_song.track_min_y();
     commands.spawn((
         MainScene,
         Mesh3d(meshes.add(Plane3d::new(Vec3::Y, Vec2::splat(1.0)))),

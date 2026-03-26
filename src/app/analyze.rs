@@ -1,7 +1,7 @@
 use crate::analysis;
 use crate::analysis::gameplay::derive_gameplay;
 use crate::analysis::model::{GameplayFrame, TrackAnalysis};
-use crate::app::gameplay::CurrentSong;
+use crate::app::gameplay::current_song::CurrentSong;
 use crate::app::playback::SongAsset;
 use crate::app::{AppState, Args};
 use bevy::prelude::*;

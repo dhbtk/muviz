@@ -1,4 +1,4 @@
-use crate::app::gameplay::CurrentSong;
+use crate::app::gameplay::current_song::CurrentSong;
 use crate::app::AppState;
 use anyhow::anyhow;
 use bevy::prelude::*;
