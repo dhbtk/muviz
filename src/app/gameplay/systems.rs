@@ -1,7 +1,7 @@
 use crate::app::gameplay::components::{MainScene, RailCamera, SongPlayer, SongTrack, Streetlight};
 use crate::app::gameplay::model::{
-    extrude_along_track, generate_track_mesh, generate_viaduct_mesh, resample_track_equidistant_points,
-    TrackPoint,
+    extrude_along_track, generate_edge_line_meshes, generate_track_mesh, generate_viaduct_mesh,
+    resample_track_equidistant_points, TrackPoint,
 };
 use crate::app::gameplay::ocean::{spawn_water, Water};
 use crate::app::gameplay::CurrentSong;
@@ -9,14 +9,14 @@ use crate::app::AppState;
 use bevy::anti_alias::fxaa::Fxaa;
 use bevy::audio::PlaybackMode;
 use bevy::camera::Exposure;
-use bevy::core_pipeline::tonemapping::Tonemapping;
-use bevy::light::{AtmosphereEnvironmentMapLight, NotShadowCaster, VolumetricFog};
+use bevy::light::AtmosphereEnvironmentMapLight;
 use bevy::pbr::{
     Atmosphere, AtmosphereSettings, ExtendedMaterial, ScatteringMedium, ScreenSpaceReflections,
 };
 use bevy::post_process::bloom::Bloom;
-use bevy::prelude::light_consts::lux;
 use bevy::prelude::*;
+use rand::prelude::SmallRng;
+use rand::{RngExt, SeedableRng};
 use std::f32::consts::PI;
 
 pub fn spawn_entities(
@@ -28,6 +28,7 @@ pub fn spawn_entities(
     data: Res<CurrentSong>,
     asset_server: Res<AssetServer>,
 ) {
+    let mut rng = SmallRng::seed_from_u64(data.frames.len() as u64);
     let track_min_y = data
         .track_points
         .iter()
@@ -36,16 +37,38 @@ pub fn spawn_entities(
         .unwrap();
     let resampled_distance_points = resample_track_equidistant_points(&data.track_points, 1.0);
     let mesh = generate_track_mesh(&resampled_distance_points);
-    commands.spawn((
-        MainScene,
-        SongTrack,
-        Mesh3d(meshes.add(mesh)),
-        MeshMaterial3d(materials.add(StandardMaterial {
-            base_color: Color::srgb(0.05, 0.05, 0.05),
-            perceptual_roughness: 0.9,
-            ..default()
-        })),
-    ));
+    commands
+        .spawn((
+            MainScene,
+            SongTrack,
+            Mesh3d(meshes.add(mesh)),
+            MeshMaterial3d(materials.add(StandardMaterial {
+                base_color: Color::srgb(0.05, 0.05, 0.05),
+                perceptual_roughness: 0.9,
+                ..default()
+            })),
+        ))
+        .with_children(|builder| {
+            let (left, right) = generate_edge_line_meshes(&resampled_distance_points);
+            builder.spawn((
+                Mesh3d(meshes.add(left)),
+                MeshMaterial3d(materials.add(StandardMaterial {
+                    base_color: Color::srgb(0.95, 0.95, 0.95),
+                    perceptual_roughness: 0.6,
+                    ..default()
+                })),
+                Transform::from_xyz(0.0, 0.05, 0.0),
+            ));
+            builder.spawn((
+                Mesh3d(meshes.add(right)),
+                MeshMaterial3d(materials.add(StandardMaterial {
+                    base_color: Color::srgb(0.95, 0.95, 0.95),
+                    perceptual_roughness: 0.6,
+                    ..default()
+                })),
+                Transform::from_xyz(0.0, 0.05, 0.0),
+            ));
+        });
     let viaduct_mesh = generate_viaduct_mesh(&resampled_distance_points);
     let viaduct_material = materials.add(StandardMaterial {
         base_color: Color::srgb(0.3, 0.3, 0.3),
@@ -85,7 +108,7 @@ pub fn spawn_entities(
                         color: Color::srgb(1.0, 0.71, 0.29),
                         radius: 0.5,
                         range: 50.0,
-                        intensity: 50_000_000.0,
+                        intensity: 10_000_000.0,
                         outer_angle: PI / 2.0,
                         shadows_enabled: false,
                         ..default()
@@ -96,7 +119,7 @@ pub fn spawn_entities(
                         .looking_at(Vec3::new(0.0, 0.0, -10.0), Vec3::Y),
                 ));
             });
-        let support_mesh_points = vec![
+        let support_mesh_points: Vec<Vec2> = vec![
             Vec2::new(-2.5, -1.5),
             Vec2::new(-2.5, 1.5),
             Vec2::new(2.5, 1.5),
@@ -122,7 +145,9 @@ pub fn spawn_entities(
             });
             starting_y += -3.0;
         }
-        let pillar_mesh = extrude_along_track(&support_height_points, &support_mesh_points);
+        let (lengths, _) = CurrentSong::compute_arc_length(&support_height_points);
+        let pillar_mesh =
+            extrude_along_track(&support_height_points, &support_mesh_points, &lengths);
         commands.spawn((
             MainScene,
             SongTrack,
@@ -140,9 +165,10 @@ pub fn spawn_entities(
             look_ahead: 2.0,
             target_pos: Vec3::ZERO,
             target_looking_at: Vec3::ZERO,
-            smoothing: 0.99,
+            target_up: Vec3::Y,
+            smoothing: 0.05,
         },
-        Camera3d::default(),
+        Camera3d { ..default() },
         Transform::default(),
         Atmosphere::earthlike(scattering_mediums.add(ScatteringMedium::default())),
         // Can be adjusted to change the scene scale and rendering quality
@@ -151,18 +177,11 @@ pub fn spawn_entities(
         // (the one recommended for use with this feature) is
         // quite bright, so raising the exposure compensation helps
         // bring the scene to a nicer brightness range.
-        Exposure { ev100: 9.0 },
-        // Tonemapper chosen just because it looked good with the scene, any
-        // tonemapper would be fine :)
-        Tonemapping::AcesFitted,
+        Exposure { ev100: 10.0 },
         // Bloom gives the sun a much more natural look.
-        Bloom::NATURAL,
+        Bloom::OLD_SCHOOL,
         // Enables the atmosphere to drive reflections and ambient lighting (IBL) for this view
         AtmosphereEnvironmentMapLight::default(),
-        VolumetricFog {
-            ambient_intensity: 0.1,
-            ..default()
-        },
         // DistanceFog {
         //     color: Color::srgba(0.35, 0.48, 0.66, 1.0),
         //     directional_light_color: Color::srgba(1.0, 0.95, 0.85, 0.5),
@@ -183,24 +202,11 @@ pub fn spawn_entities(
         DirectionalLight {
             color: Color::srgb(0.98, 0.95, 0.82),
             shadows_enabled: true,
-            illuminance: lux::CLEAR_SUNRISE,
+            illuminance: 600.0,
             ..default()
         },
-        Transform::from_xyz(0.0, 20000.0, 0.0).looking_at(Vec3::new(-0.15, -0.05, 0.25), Vec3::Y),
-    ));
-
-    // Sky
-    commands.spawn((
-        MainScene,
-        Mesh3d(meshes.add(Cuboid::new(3.0, 1.0, 3.0))),
-        MeshMaterial3d(materials.add(StandardMaterial {
-            base_color: Srgba::hex("888888").unwrap().into(),
-            unlit: true,
-            cull_mode: None,
-            ..default()
-        })),
-        Transform::from_scale(Vec3::splat(20000.0)),
-        NotShadowCaster,
+        Transform::from_xyz(0.0, rng.random_range(1.0..500.0), 20_000.0)
+            .looking_at(Vec3::ZERO, Vec3::Y),
     ));
 
     spawn_water(
@@ -249,14 +255,23 @@ pub fn update_camera(
         if cam.target_looking_at == Vec3::ZERO {
             cam.target_looking_at = target;
         }
+        if cam.target_up == Vec3::Y && current.up != Vec3::Y {
+            cam.target_up = current.up;
+        }
+
+        let dt = time.delta_secs();
+        // Smoothing factor (the fraction to move towards the target each frame, independent of framerate)
+        let factor = 1.0 - cam.smoothing.powf(dt);
 
         // Smoothly update the camera position
-        cam.target_pos = cam.target_pos.lerp(cam_pos, cam.smoothing);
+        cam.target_pos = cam.target_pos.lerp(cam_pos, factor);
         transform.translation = cam.target_pos;
 
         // Smoothly update where the camera is looking
-        cam.target_looking_at = cam.target_looking_at.lerp(target, cam.smoothing);
-        transform.look_at(cam.target_looking_at, current.up);
+        cam.target_looking_at = cam.target_looking_at.lerp(target, factor);
+        // Smoothly update the up vector
+        cam.target_up = cam.target_up.lerp(current.up, factor).normalize();
+        transform.look_at(cam.target_looking_at, cam.target_up);
     }
 }
 
@@ -292,25 +307,23 @@ pub fn update_streetlights(
     mut query: Query<(&GlobalTransform, &mut SpotLight), With<Streetlight>>,
     song: Res<CurrentSong>,
 ) {
-    let player_coordinates = song.track_points[song.current_frame_t().floor() as usize].position;
+    let curve = EasingCurve::new(0.0, 1.0, EaseFunction::ExponentialInOut);
+    let player_coordinates = song.sample_track_point(song.current_frame_t()).position;
     // streetlights far from the player should be off.
     // streetlight intensity should be proportional to beat strength at that point times a falloff for lamps away from
     // the player.
     for (transform, mut light) in query.iter_mut() {
         let distance = player_coordinates.distance(transform.translation());
-        if distance > 3000.0 {
+        let cutoff = 500.0;
+        if distance > cutoff {
             light.intensity = 0.0;
-        } else if distance > 1000.0 {
-            let base_intensity = if distance < 500.0 {
-                50_000_000.0
-            } else {
-                50_000_000.0 * (1.0 - (distance - 500.0) / 500.0)
-            };
-            // let features = song.nearest_frame(transform.translation());
-            light.intensity = base_intensity;
-            // base_intensity * (features.lane_left + features.beat_strength).clamp(0.2, 1.0);
+            continue;
         }
-        // let pulse = song.time_seconds.sin();
-        // light.intensity = 10_000_000.0 + (pulse * 40_000_000.0);
+        let falloff = curve.sample_clamped(1.0 - (distance - cutoff).clamp(0.0, cutoff) / cutoff);
+        let features = song.nearest_frame(transform.translation());
+        light.intensity = 50_000_000.0
+            * (1.0 - falloff).clamp(0.2, 1.0)
+            * curve.sample_clamped((features.beat_strength + features.lane_left))
+            * 2.0;
     }
 }

@@ -6,6 +6,7 @@ pub struct RailCamera {
     pub look_ahead: f32,
     pub target_pos: Vec3,
     pub target_looking_at: Vec3,
+    pub target_up: Vec3,
     pub smoothing: f32,
 }
 

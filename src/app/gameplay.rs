@@ -46,6 +46,8 @@ pub struct CurrentSong {
     pub song_asset: Handle<SongAsset>,
     pub paused: bool,
     pub track_bounding_box: Aabb,
+    pub cumulative_lengths: Vec<f32>,
+    pub total_length: f32,
 }
 
 impl CurrentSong {
@@ -56,7 +58,8 @@ impl CurrentSong {
             .to_string();
         let mut track_points = model::generate_track_points(&track_analysis, &frames);
         smooth_positions(&mut track_points, 0.3);
-        let track_points = resample_track_equidistant_points(&track_points, 1.0);
+        let (arc_lengths, total_length) = Self::compute_arc_length(&track_points);
+        debug!("total length: {}", total_length);
 
         Ok(Self {
             track_analysis,
@@ -67,7 +70,23 @@ impl CurrentSong {
             track_bounding_box: Self::track_bounding_box(&track_points),
             track_points,
             paused: true,
+            cumulative_lengths: arc_lengths,
+            total_length,
         })
+    }
+    pub fn compute_arc_length(points: &[TrackPoint]) -> (Vec<f32>, f32) {
+        let mut lengths = Vec::with_capacity(points.len());
+        let mut total = 0.0;
+
+        lengths.push(0.0);
+
+        for i in 1..points.len() {
+            let d = points[i].position.distance(points[i - 1].position);
+            total += d;
+            lengths.push(total);
+        }
+
+        (lengths, total)
     }
 
     pub fn file_name(&self) -> &str {
@@ -78,13 +97,28 @@ impl CurrentSong {
         let i = t.floor() as usize;
         let frac = t.fract();
 
-        let i0 = i.min(self.track_points.len() - 1);
-        let i1 = (i + 1).min(self.track_points.len() - 1);
+        let len = self.track_points.len();
+        if len == 0 {
+            return TrackPoint {
+                rotation: Quat::IDENTITY,
+                position: Vec3::ZERO,
+                forward: Vec3::Z,
+                right: Vec3::X,
+                up: Vec3::Y,
+            };
+        }
+
+        let i0 = i.saturating_sub(1).min(len - 1);
+        let i1 = i.min(len - 1);
+        let i2 = (i + 1).min(len - 1);
+        let i3 = (i + 2).min(len - 1);
 
         let p0 = &self.track_points[i0];
         let p1 = &self.track_points[i1];
+        let p2 = &self.track_points[i2];
+        let p3 = &self.track_points[i3];
 
-        p0.lerp(p1, frac)
+        TrackPoint::catmull_rom(p0, p1, p2, p3, frac)
     }
 
     pub fn current_frame_t(&self) -> f32 {

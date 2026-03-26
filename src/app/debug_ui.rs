@@ -15,13 +15,22 @@ pub struct DebugInfoLabel;
 #[derive(Component)]
 pub struct DebugUi;
 
+#[derive(Resource, PartialEq)]
+pub struct DebugUiVisible(pub bool);
+
 impl Plugin for DebugUiPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(OnEnter(AppState::Gameplay), start_debug_ui)
+        app.insert_resource(DebugUiVisible(true))
+            .add_systems(OnEnter(AppState::Gameplay), start_debug_ui)
             .add_systems(OnExit(AppState::Gameplay), teardown_debug_ui)
             .add_systems(
                 Update,
-                (update_timing, update_debug_info, draw_graphs, draw_mini_map)
+                (
+                    toggle_debug_ui,
+                    (update_timing, update_debug_info, draw_graphs, draw_mini_map)
+                        .run_if(resource_equals(DebugUiVisible(true))),
+                    sync_debug_ui_visibility,
+                )
                     .run_if(in_state(AppState::Gameplay)),
             );
     }
@@ -31,20 +40,20 @@ fn start_debug_ui(
     mut commands: Commands,
     current_song: Res<CurrentSong>,
     _windows: Query<&Window, With<PrimaryWindow>>,
+    debug_ui_visible: Res<DebugUiVisible>,
 ) {
     info!("starting ui for {}", current_song.file_name());
     commands.spawn((
         DebugUi,
-        // Camera2d,
-        // Camera {
-        //     order: 1,
-        //     clear_color: ClearColorConfig::None,
-        //     ..default()
-        // },
+        if debug_ui_visible.0 {
+            Visibility::Visible
+        } else {
+            Visibility::Hidden
+        },
         Node {
             display: Display::Grid,
-            width: percent(100),
-            height: percent(100),
+            width: Val::Percent(100.0),
+            height: Val::Percent(100.0),
             ..default()
         },
         children![
@@ -83,6 +92,27 @@ fn start_debug_ui(
             )
         ],
     ));
+}
+
+fn toggle_debug_ui(input: Res<ButtonInput<KeyCode>>, mut debug_ui_visible: ResMut<DebugUiVisible>) {
+    if input.just_pressed(KeyCode::KeyH) {
+        debug_ui_visible.0 = !debug_ui_visible.0;
+    }
+}
+
+fn sync_debug_ui_visibility(
+    debug_ui_visible: Res<DebugUiVisible>,
+    mut query: Query<&mut Visibility, With<DebugUi>>,
+) {
+    if debug_ui_visible.is_changed() {
+        for mut visibility in query.iter_mut() {
+            *visibility = if debug_ui_visible.0 {
+                Visibility::Visible
+            } else {
+                Visibility::Hidden
+            };
+        }
+    }
 }
 
 fn teardown_debug_ui(mut commands: Commands, query: Query<Entity, With<DebugUi>>) -> Result {
@@ -425,7 +455,7 @@ fn draw_mini_map(
     let up = camera_transform.up();
 
     let to_3d = |x: f32, z: f32| -> Vec3 {
-        let lx = (x - center_x) * scale;
+        let lx = -(x - center_x) * scale;
         let ly = (z - center_z) * scale;
         map_center + right * lx + up * ly
     };
@@ -440,7 +470,7 @@ fn draw_mini_map(
         gizmos.line(p0, p1, Color::WHITE);
     }
 
-    let current_position = data.sample_track_point(data.time_seconds).position;
+    let current_position = data.sample_track_point(data.current_frame_t()).position;
     let current_p = to_3d(current_position.x, current_position.z);
 
     let size = 0.2;

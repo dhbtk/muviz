@@ -117,6 +117,7 @@ pub fn handle_list_item_interaction(
                     input: Some(item.entry.path.clone()),
                     output: None,
                     analyze_only: false,
+                    ..Default::default()
                 });
                 commands.set_state(AppState::Analyze);
             }
