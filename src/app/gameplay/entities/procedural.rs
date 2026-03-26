@@ -1,14 +1,16 @@
+pub mod track_lines;
+
 use crate::app::assets::GlobalAssets;
 use crate::app::gameplay::current_song::CurrentSong;
 use crate::app::gameplay::entities::MainScene;
 use crate::app::gameplay::track::mesh_generation::extrude_along_track;
-use crate::app::gameplay::track::procedural_meshes::{
-    generate_edge_line_meshes, generate_track_mesh, generate_viaduct_mesh,
-};
+use crate::app::gameplay::track::procedural_meshes::{generate_track_mesh, generate_viaduct_mesh};
 use crate::app::gameplay::track::track_generation::resample_track_equidistant_points;
 use crate::app::gameplay::track::track_point::TrackPoint;
+use bevy::math::VectorSpace;
 use bevy::prelude::*;
 use std::f32::consts::PI;
+use track_lines::generate_line_meshes;
 
 pub fn spawn_track(
     mut commands: Commands,
@@ -32,25 +34,20 @@ pub fn spawn_track(
             })),
         ))
         .with_children(|builder| {
-            let (left, right) = generate_edge_line_meshes(&resampled_distance_points);
-            builder.spawn((
-                Mesh3d(meshes.add(left)),
-                MeshMaterial3d(materials.add(StandardMaterial {
-                    base_color: Color::srgb(0.95, 0.95, 0.95),
-                    perceptual_roughness: 0.6,
-                    ..default()
-                })),
-                Transform::from_xyz(0.0, 0.05, 0.0),
-            ));
-            builder.spawn((
-                Mesh3d(meshes.add(right)),
-                MeshMaterial3d(materials.add(StandardMaterial {
-                    base_color: Color::srgb(0.95, 0.95, 0.95),
-                    perceptual_roughness: 0.6,
-                    ..default()
-                })),
-                Transform::from_xyz(0.0, 0.05, 0.0),
-            ));
+            let mesh_list = generate_line_meshes(&resampled_distance_points);
+            let line_material = materials.add(StandardMaterial {
+                base_color: Color::srgb(0.95, 0.95, 0.95),
+                perceptual_roughness: 0.6,
+                ..default()
+            });
+            mesh_list.iter().for_each(|mesh| {
+                builder.spawn((
+                    SongTrackLine,
+                    Mesh3d(meshes.add(mesh.clone())),
+                    MeshMaterial3d(line_material.clone()),
+                    Transform::from_xyz(0.0, 0.01, 0.0),
+                ));
+            })
         });
     let viaduct_mesh = generate_viaduct_mesh(&resampled_distance_points);
     let viaduct_material = materials.add(StandardMaterial {
@@ -64,11 +61,18 @@ pub fn spawn_track(
         Mesh3d(meshes.add(viaduct_mesh)),
         MeshMaterial3d(viaduct_material.clone()),
     ));
+    let cateye_material = materials.add(StandardMaterial {
+        base_color: Color::linear_rgb(1.0, 0.0, 0.0),
+        emissive: LinearRgba::rgb(1.0, 0.0, 0.0),
+        perceptual_roughness: 0.1,
+        ..default()
+    });
+    let cateye_mesh = meshes.add(Cuboid::from_size(Vec3::splat(0.18)));
     for (i, point) in resample_track_equidistant_points(&data.track_points, 40.0)
         .iter()
         .enumerate()
     {
-        let offset = if i % 2 == 0 { 10.5 } else { -10.5 };
+        let offset = if i % 2 == 0 { 10.0 } else { -10.0 };
         commands
             .spawn((
                 MainScene,
@@ -129,6 +133,40 @@ pub fn spawn_track(
             Transform::from_translation(point.position - 3.0 * Vec3::Y),
         ));
     }
+    resampled_distance_points
+        .iter()
+        .enumerate()
+        .skip(30)
+        .for_each(|(i, point)| {
+            if (10 + i) % 40 == 0 {
+                [3.0, -3.0].into_iter().for_each(|offset: f32| {
+                    commands.spawn((
+                        MainScene,
+                        Cateye,
+                        Mesh3d(cateye_mesh.clone()),
+                        MeshMaterial3d(cateye_material.clone()),
+                        Transform::from_translation(
+                            point.position + point.right * offset + point.up * -0.06,
+                        )
+                        .with_rotation(point.rotation),
+                    ));
+                });
+            }
+            if (30 + i) % 40 == 0 {
+                [8.45, -8.45].into_iter().for_each(|offset: f32| {
+                    commands.spawn((
+                        MainScene,
+                        Cateye,
+                        Mesh3d(cateye_mesh.clone()),
+                        MeshMaterial3d(cateye_material.clone()),
+                        Transform::from_translation(
+                            point.position + point.right * offset + point.up * -0.06,
+                        )
+                        .with_rotation(point.rotation),
+                    ));
+                });
+            }
+        });
 }
 
 #[derive(Component)]
@@ -136,3 +174,39 @@ pub struct SongTrack;
 
 #[derive(Component)]
 pub struct Streetlight;
+
+#[derive(Component)]
+pub struct SongTrackLine;
+
+#[derive(Component)]
+pub struct Cateye;
+
+pub fn update_track_line_emissive(
+    song: Res<CurrentSong>,
+    line_materials: Query<&MeshMaterial3d<StandardMaterial>, With<SongTrackLine>>,
+    cateye_materials: Query<&MeshMaterial3d<StandardMaterial>, With<Cateye>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+) {
+    let frame = song.sample_gameplay_frame(song.current_frame_t());
+    let energy = EasingCurve::new(0.0, 1.0, EaseFunction::SmootherStep)
+        .sample_clamped(frame.energy.max(0.0));
+    let light_intensity = energy * 1.0;
+    for handle in &line_materials {
+        if let Some(material) = materials.get_mut(&handle.0) {
+            material.emissive = material.emissive.lerp(
+                LinearRgba::rgb(light_intensity, light_intensity, light_intensity),
+                0.1,
+            );
+        }
+    }
+    let beat_color = Color::hsl(energy * 360.0, frame.beat_strength.max(0.2), 0.5);
+    let beat_intensity = frame.beat_strength * 150.0;
+    for handle in &cateye_materials {
+        if let Some(material) = materials.get_mut(&handle.0) {
+            material.base_color = beat_color;
+            material.emissive = material
+                .emissive
+                .lerp(beat_color.to_linear() * beat_intensity, 0.1);
+        }
+    }
+}

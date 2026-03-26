@@ -67,6 +67,30 @@ pub struct FrameFeatures {
     pub band_flux: Vec<f32>,
 }
 
+impl FrameFeatures {
+    pub fn lerp(&self, other: &FrameFeatures, frac: f32) -> FrameFeatures {
+        FrameFeatures {
+            time_s: self.time_s + (other.time_s - self.time_s) * frac,
+            rms: self.rms + (other.rms - self.rms) * frac,
+            spectral_flux: self.spectral_flux + (other.spectral_flux - self.spectral_flux) * frac,
+            spectral_flatness: self.spectral_flatness
+                + (other.spectral_flatness - self.spectral_flatness) * frac,
+            band_energy: self
+                .band_energy
+                .iter()
+                .zip(other.band_energy.iter())
+                .map(|(a, b)| a + (b - a) * frac)
+                .collect(),
+            band_flux: self
+                .band_flux
+                .iter()
+                .zip(other.band_flux.iter())
+                .map(|(a, b)| a + (b - a) * frac)
+                .collect(),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TrackAnalysis {
     pub sample_rate: u32,
@@ -112,5 +136,19 @@ impl GameplayFrame {
         self.lane_right = self.lane_right.min(1.0);
         self.event = self.event.min(1.0);
         self.texture = self.texture.min(1.0);
+    }
+
+    pub fn lerp(&self, other: &GameplayFrame, frac: f32) -> GameplayFrame {
+        GameplayFrame {
+            time_s: self.time_s + (other.time_s - self.time_s) * frac,
+            lane_left: self.lane_left + (other.lane_left - self.lane_left) * frac,
+            lane_center: self.lane_center + (other.lane_center - self.lane_center) * frac,
+            lane_right: self.lane_right + (other.lane_right - self.lane_right) * frac,
+            energy: self.energy + (other.energy - self.energy) * frac,
+            event: self.event + (other.event - self.event) * frac,
+            texture: self.texture + (other.texture - self.texture) * frac,
+            beat_strength: self.beat_strength + (other.beat_strength - self.beat_strength) * frac,
+            frame: self.frame.lerp(&other.frame, frac),
+        }
     }
 }

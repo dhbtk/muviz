@@ -5,7 +5,7 @@ use bevy::prelude::{EaseFunction, EasingCurve};
 use rand::prelude::SmallRng;
 use rand::{RngExt, SeedableRng};
 use std::f32::consts::PI;
-use tracing::info;
+use tracing::{debug, info};
 pub fn resample_track_equidistant_points(points: &[TrackPoint], distance: f32) -> Vec<TrackPoint> {
     if points.len() < 2 || distance <= 0.0 {
         return points.to_vec();
@@ -51,11 +51,13 @@ pub fn generate_track_points(
     let mut yaw_flip_interval = beat_intervals[rng.random_range(0..beat_intervals.len() - 1)];
     let mut pitch_flip_interval = beat_intervals[rng.random_range(0..beat_intervals.len() - 1)];
     let curve = EasingCurve::new(0.0, 1.0, EaseFunction::SmootherStep);
-    let height_scale = 0.06;
-    let curve_scale = 0.022;
+    let pitch_scale = 0.16;
+    let yaw_scale = 0.044;
     let yaw_delta_decay = 0.0001;
-    let yaw_recentering_force = 0.0002;
+    let yaw_delta_limit = 0.15;
+    let yaw_recentering_force = 0.002;
     let pitch_delta_decay = 0.012;
+    let pitch_delta_limit = 0.02;
     let pitch_recentering_force = 0.0002;
     let pitch_limit = PI / 8.;
     let roll_limit = PI / 12.;
@@ -79,36 +81,63 @@ pub fn generate_track_points(
     for frame in frames {
         let mut yaw_delta = curve.sample_clamped(
             (frame.lane_left - frame.lane_right) * (0.5 + frame.beat_strength * 0.5),
-        ) * curve_scale;
+        ) * yaw_scale;
         if ((frame.time_s / bps) % yaw_flip_interval as f32) as i32 % 2 == 0 {
             yaw_delta = -yaw_delta;
-            yaw_flip_interval = beat_intervals[rng.random_range(0..beat_intervals.len() - 1)];
+            let prev = yaw_flip_interval;
+            while prev == yaw_flip_interval {
+                yaw_flip_interval = beat_intervals[rng.random_range(0..beat_intervals.len() - 1)];
+            }
+            debug!("yaw flip interval: {} -> {}", prev, yaw_flip_interval);
         }
         if yaw_delta > 0. {
-            yaw_delta = 0.0_f32.max(yaw_delta - yaw_delta_decay).min(0.15);
+            yaw_delta = 0.0_f32
+                .max(yaw_delta - yaw_delta_decay)
+                .min(yaw_delta_limit);
         } else if yaw_delta < 0. {
-            yaw_delta = 0.0_f32.min(yaw_delta + yaw_delta_decay).max(-0.15);
+            yaw_delta = 0.0_f32
+                .min(yaw_delta + yaw_delta_decay)
+                .max(-yaw_delta_limit);
         }
         if yaw > 0. {
             yaw_delta -= yaw_recentering_force * rng.random::<f32>();
         } else if yaw < 0. {
             yaw_delta += yaw_recentering_force * rng.random::<f32>();
         }
-        let mut pitch_delta = (frame.energy * 0.3 + frame.lane_center * 0.7) * height_scale;
+        if yaw_delta > 0. {
+            yaw_delta = curve.sample_clamped(yaw_delta / yaw_delta_limit) * yaw_delta_limit;
+        } else {
+            yaw_delta = -curve.sample_clamped(-yaw_delta / yaw_delta_limit) * yaw_delta_limit;
+        }
+        let mut pitch_delta = (frame.energy * 0.3 + frame.lane_center * 0.7) * pitch_scale;
         // - (frame.beat_strength * frame.energy * -0.02);
         if ((frame.time_s / bps) % pitch_flip_interval as f32) as i32 % 2 == 0 {
             pitch_delta = -pitch_delta;
-            pitch_flip_interval = beat_intervals[rng.random_range(0..beat_intervals.len() - 1)];
+            let prev = pitch_flip_interval;
+            while prev == pitch_flip_interval {
+                pitch_flip_interval = beat_intervals[rng.random_range(0..beat_intervals.len() - 1)];
+            }
+            debug!("pitch flip interval: {} -> {}", prev, pitch_flip_interval);
         }
         if pitch_delta > 0. {
-            pitch_delta = 0.0_f32.max(pitch_delta - pitch_delta_decay).min(0.02);
+            pitch_delta = 0.0_f32
+                .max(pitch_delta - pitch_delta_decay)
+                .min(pitch_delta_limit);
         } else if pitch_delta < 0. {
-            pitch_delta = 0.0_f32.min(pitch_delta + pitch_delta_decay).max(-0.02);
+            pitch_delta = 0.0_f32
+                .min(pitch_delta + pitch_delta_decay)
+                .max(-pitch_delta_limit);
         }
         if position.y > 0. {
             pitch_delta += pitch_recentering_force * rng.random::<f32>();
         } else {
             pitch_delta -= pitch_recentering_force * rng.random::<f32>();
+        }
+        if pitch_delta > 0. {
+            pitch_delta = curve.sample_clamped(pitch_delta / pitch_delta_limit) * pitch_delta_limit;
+        } else {
+            pitch_delta =
+                -curve.sample_clamped(-pitch_delta / pitch_delta_limit) * pitch_delta_limit;
         }
         let roll_delta = yaw_delta * 0.1;
         pitch += pitch_delta;

@@ -10,6 +10,7 @@ use bevy::math::{Quat, Vec3};
 use bevy::prelude;
 use bevy::prelude::Resource;
 use std::fs::canonicalize;
+use std::path::Path;
 use tracing::debug;
 
 #[derive(Resource, Clone)]
@@ -66,7 +67,11 @@ impl CurrentSong {
     }
 
     pub fn file_name(&self) -> &str {
-        &self.file_path
+        Path::new(&self.file_path)
+            .file_name()
+            .unwrap()
+            .to_str()
+            .unwrap()
     }
 
     pub fn sample_track_point(&self, t: f32) -> TrackPoint {
@@ -95,6 +100,14 @@ impl CurrentSong {
         let p3 = &self.track_points[i3];
 
         TrackPoint::catmull_rom(p0, p1, p2, p3, frac)
+    }
+
+    pub fn sample_gameplay_frame(&self, t: f32) -> GameplayFrame {
+        let i = t.floor() as usize;
+        let frac = t.fract();
+        let frame = self.frames.get(i).unwrap_or(&self.frames[0]);
+        let next = self.frames.get(i + 1).unwrap_or(&self.frames[1]);
+        frame.lerp(next, frac)
     }
 
     pub fn current_frame_t(&self) -> f32 {

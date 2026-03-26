@@ -1,7 +1,7 @@
 use crate::app::gameplay::entities::camera::spawn_camera;
 use crate::app::gameplay::entities::ocean::spawn_water;
 use crate::app::gameplay::entities::ocean::Water;
-use crate::app::gameplay::entities::procedural::spawn_track;
+use crate::app::gameplay::entities::procedural::{spawn_track, update_track_line_emissive};
 use crate::app::gameplay::entities::song_player::spawn_song_player;
 use crate::app::gameplay::entities::sun::spawn_sun;
 use crate::app::gameplay::runtime::{update_camera, update_playback, update_streetlights};
@@ -35,7 +35,12 @@ impl Plugin for GameplayPlugin {
             .add_systems(OnExit(AppState::Gameplay), despawn_entities)
             .add_systems(
                 Update,
-                (update_playback, update_camera, update_streetlights)
+                (
+                    update_playback,
+                    update_camera,
+                    update_streetlights,
+                    update_track_line_emissive,
+                )
                     .run_if(in_state(AppState::Gameplay)),
             );
     }

@@ -1,4 +1,6 @@
+use crate::app::assets::GlobalAssets;
 use crate::app::gameplay::current_song::CurrentSong;
+use crate::app::gameplay::entities::procedural::SongTrackLine;
 use crate::app::AppState;
 use anyhow::anyhow;
 use bevy::prelude::*;
@@ -11,6 +13,9 @@ pub struct SecondsCounter;
 
 #[derive(Component)]
 pub struct DebugInfoLabel;
+
+#[derive(Component)]
+pub struct FxDebugLabel;
 
 #[derive(Component)]
 pub struct DebugUi;
@@ -27,7 +32,13 @@ impl Plugin for DebugUiPlugin {
                 Update,
                 (
                     toggle_debug_ui,
-                    (update_timing, update_debug_info, draw_graphs, draw_mini_map)
+                    (
+                        update_timing,
+                        update_debug_info,
+                        draw_graphs,
+                        draw_mini_map,
+                        update_fx_debug_info,
+                    )
                         .run_if(resource_equals(DebugUiVisible(true))),
                     sync_debug_ui_visibility,
                 )
@@ -41,6 +52,7 @@ fn start_debug_ui(
     current_song: Res<CurrentSong>,
     _windows: Query<&Window, With<PrimaryWindow>>,
     debug_ui_visible: Res<DebugUiVisible>,
+    assets: Res<GlobalAssets>,
 ) {
     info!("starting ui for {}", current_song.file_name());
     commands.spawn((
@@ -59,6 +71,10 @@ fn start_debug_ui(
         children![
             (
                 Text::new(current_song.file_name()),
+                TextFont {
+                    font: assets.ui_font.clone(),
+                    ..default()
+                },
                 Node {
                     position_type: PositionType::Absolute,
                     top: Val::Px(10.0),
@@ -69,6 +85,10 @@ fn start_debug_ui(
             (
                 SecondsCounter,
                 Text::new(format!("{:.2}", current_song.time_seconds)),
+                TextFont {
+                    font: assets.ui_font.clone(),
+                    ..default()
+                },
                 Node {
                     position_type: PositionType::Absolute,
                     top: Val::Px(10.0),
@@ -87,6 +107,21 @@ fn start_debug_ui(
                     position_type: PositionType::Absolute,
                     bottom: Val::Px(10.0),
                     left: Val::Px(10.0),
+                    ..default()
+                }
+            ),
+            (
+                FxDebugLabel,
+                Text::new(""),
+                TextLayout::new_with_justify(Justify::Right),
+                TextFont {
+                    font_size: 14.0,
+                    ..default()
+                },
+                Node {
+                    position_type: PositionType::Absolute,
+                    bottom: Val::Px(10.0),
+                    right: Val::Px(10.0),
                     ..default()
                 }
             )
@@ -127,6 +162,28 @@ fn update_timing(
 ) -> Result {
     let mut label = time_label_query.single_mut()?;
     label.0 = format!("{:.2}", current_song.time_seconds);
+    Ok(())
+}
+
+fn update_fx_debug_info(
+    current_song: Res<CurrentSong>,
+    mut fx_label_query: Query<&mut Text, With<FxDebugLabel>>,
+    line_materials: Query<&MeshMaterial3d<StandardMaterial>, With<SongTrackLine>>,
+    materials: Res<Assets<StandardMaterial>>,
+) -> Result {
+    // let Ok(line_material) = line_materials.single() else {
+    //     return Ok(());
+    // };
+    // let Ok(mut label) = fx_label_query.single_mut() else {
+    //     return Ok(());
+    // };
+    // let Some(material) = materials.get(&line_material.0) else {
+    //     return Ok(());
+    // };
+    let line_material = line_materials.iter().next().unwrap();
+    let mut label = fx_label_query.single_mut()?;
+    let material = materials.get(&line_material.0).unwrap();
+    label.0 = format!("emissive: {:.2}", material.emissive.red);
     Ok(())
 }
 
