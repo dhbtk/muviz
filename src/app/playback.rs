@@ -1,5 +1,5 @@
 use crate::analysis::audio_decode::codec_registry;
-use bevy::audio::{Decodable, Source};
+use bevy::audio::{AddAudioSource, Decodable, Source};
 use bevy::prelude::*;
 use std::fs::File;
 use std::path::Path;
@@ -31,7 +31,8 @@ pub struct PlaybackPlugin;
 
 impl Plugin for PlaybackPlugin {
     fn build(&self, app: &mut App) {
-        app.init_asset::<SongAsset>();
+        app.add_audio_source::<SongAsset>()
+            .init_asset::<SongAsset>();
     }
 }
 

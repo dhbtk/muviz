@@ -1,9 +1,9 @@
 use crate::app::gameplay::entities::camera::spawn_camera;
 use crate::app::gameplay::entities::ocean::spawn_water;
 use crate::app::gameplay::entities::ocean::Water;
+use crate::app::gameplay::entities::procedural::spawn_track;
 use crate::app::gameplay::entities::song_player::spawn_song_player;
 use crate::app::gameplay::entities::sun::spawn_sun;
-use crate::app::gameplay::entities::track::spawn_track;
 use crate::app::gameplay::runtime::{update_camera, update_playback, update_streetlights};
 use crate::app::gameplay::teardown::despawn_entities;
 use crate::app::AppState;

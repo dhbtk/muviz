@@ -1,6 +1,6 @@
 use crate::analysis::model::{GameplayFrame, TrackAnalysis};
-use crate::app::gameplay::track::track_point;
 use crate::app::gameplay::track::track_point::{smooth_positions, TrackPoint};
+use crate::app::gameplay::track::{track_generation, track_point};
 use crate::app::playback::SongAsset;
 use crate::app::{analyze, Args};
 use crate::{HOP_SIZE, SAMPLE_RATE};
@@ -32,7 +32,7 @@ impl CurrentSong {
         let file_path = canonicalize(args.input_file_path())?
             .to_string_lossy()
             .to_string();
-        let mut track_points = track_point::generate_track_points(&track_analysis, &frames);
+        let mut track_points = track_generation::generate_track_points(&track_analysis, &frames);
         smooth_positions(&mut track_points, 0.3);
         let (arc_lengths, total_length) = Self::compute_arc_length(&track_points);
         debug!("total length: {}", total_length);

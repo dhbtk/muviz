@@ -12,15 +12,10 @@ pub fn derive_gameplay(analysis: &TrackAnalysis) -> Vec<GameplayFrame> {
         let high_mid = f.band_energy.get(4).copied().unwrap_or(0.0);
         let high = f.band_energy.get(5).copied().unwrap_or(0.0);
 
-        // Lanes (bem importantes visualmente)
         let lane_left = sub + bass;
         let lane_center = low_mid + mid;
         let lane_right = high_mid + high;
 
-        // Energia global
-        let energy = f.rms;
-
-        // Eventos (ataques)
         let event = 0.6 * f.spectral_flux
             + 0.3 * (f.band_flux.first().unwrap_or(&0.0) + f.band_flux.get(1).unwrap_or(&0.0))
             + 0.1 * f.band_flux.get(4).unwrap_or(&0.0);
@@ -35,7 +30,7 @@ pub fn derive_gameplay(analysis: &TrackAnalysis) -> Vec<GameplayFrame> {
             lane_left,
             lane_center,
             lane_right,
-            energy,
+            energy: 0.0,
             event,
             texture,
             beat_strength,
@@ -64,5 +59,6 @@ fn gaussian_beat_strength(time_s: f32, beat_times_s: &[f32], sigma_s: f32) -> f3
 fn normalize_gameplay(frames: &mut [GameplayFrame]) {
     for f in frames {
         f.normalize();
+        f.energy = 0.5 * f.frame.rms + (f.lane_left + f.lane_center + f.lane_right) / 6.0;
     }
 }

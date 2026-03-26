@@ -1,4 +1,5 @@
 pub mod analyze;
+pub mod assets;
 pub mod colors;
 pub mod debug_ui;
 pub mod file_picker;
@@ -6,13 +7,14 @@ pub mod gameplay;
 pub mod playback;
 
 use crate::app::analyze::AnalyzePlugin;
+use crate::app::assets::GlobalAssets;
 use crate::app::debug_ui::DebugUiPlugin;
-use crate::app::playback::{PlaybackPlugin, SongAsset};
+use crate::app::playback::PlaybackPlugin;
 use bevy::asset::UnapprovedPathMode;
-use bevy::audio::AddAudioSource;
 use bevy::log::{Level, LogPlugin};
 use bevy::prelude::*;
 use bevy::window::WindowMode;
+use bevy_asset_loader::prelude::*;
 use clap::Parser;
 use file_picker::plugin::FilePickerPlugin;
 use gameplay::plugin::GameplayPlugin;
@@ -49,7 +51,11 @@ pub fn run_app(args: Args) {
                 }),
         )
         .init_state::<AppState>()
-        .add_audio_source::<SongAsset>()
+        .add_loading_state(
+            LoadingState::new(AppState::Loading)
+                .continue_to_state(AppState::Initial)
+                .load_collection::<GlobalAssets>(),
+        )
         .add_plugins(FilePickerPlugin)
         .add_plugins(AnalyzePlugin)
         .add_plugins(DebugUiPlugin)
@@ -82,6 +88,7 @@ impl Args {
 #[derive(Clone, Eq, PartialEq, Hash, Debug, Default, States)]
 pub enum AppState {
     #[default]
+    Loading,
     Initial,
     FilePicker,
     Analyze,

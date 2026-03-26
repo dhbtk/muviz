@@ -1,5 +1,5 @@
 use crate::app::gameplay::current_song::CurrentSong;
-use crate::app::gameplay::track::track_generation;
+use crate::app::gameplay::track::mesh_generation;
 use crate::app::gameplay::track::track_point::TrackPoint;
 use bevy::math::Vec2;
 use bevy::mesh::Mesh;
@@ -10,8 +10,8 @@ pub fn generate_edge_line_meshes(points: &[TrackPoint]) -> (Mesh, Mesh) {
     let (left_lengths, _) = CurrentSong::compute_arc_length(points);
     let (right_lengths, _) = CurrentSong::compute_arc_length(points);
     (
-        track_generation::extrude_along_track(points, &left_track_shape, &left_lengths),
-        track_generation::extrude_along_track(points, &right_track_shape, &right_lengths),
+        mesh_generation::extrude_along_track(points, &left_track_shape, &left_lengths),
+        mesh_generation::extrude_along_track(points, &right_track_shape, &right_lengths),
     )
 }
 
@@ -27,7 +27,7 @@ pub fn generate_track_mesh(points: &[TrackPoint]) -> Mesh {
         Vec2::new(-9.0, 0.0),
     ];
     let (lengths, _) = CurrentSong::compute_arc_length(points);
-    track_generation::extrude_along_track(points, &track_shape, &lengths)
+    mesh_generation::extrude_along_track(points, &track_shape, &lengths)
 }
 
 pub fn generate_viaduct_mesh(points: &[TrackPoint]) -> Mesh {
@@ -44,5 +44,5 @@ pub fn generate_viaduct_mesh(points: &[TrackPoint]) -> Mesh {
         Vec2::new(-9.0, 0.0),
     ];
     let (lengths, _) = CurrentSong::compute_arc_length(points);
-    track_generation::extrude_along_track(points, &track_shape, &lengths)
+    mesh_generation::extrude_along_track(points, &track_shape, &lengths)
 }

@@ -1,7 +1,7 @@
 use crate::app::gameplay::current_song::CurrentSong;
 use crate::app::gameplay::entities::camera::RailCamera;
+use crate::app::gameplay::entities::procedural::Streetlight;
 use crate::app::gameplay::entities::song_player::SongPlayer;
-use crate::app::gameplay::entities::track::Streetlight;
 use crate::app::AppState;
 use bevy::audio::{AudioSink, AudioSinkPlayback};
 use bevy::input::ButtonInput;
