@@ -10,7 +10,7 @@ pub fn spawn_song_player(mut commands: Commands, data: Res<CurrentSong>) {
         AudioPlayer(data.song_asset.clone()),
         PlaybackSettings {
             mode: PlaybackMode::Despawn,
-            paused: true,
+            paused: data.paused,
             ..default()
         },
     ));

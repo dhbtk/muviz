@@ -3,7 +3,7 @@ use bevy::anti_alias::fxaa::Fxaa;
 use bevy::camera::Exposure;
 use bevy::light::AtmosphereEnvironmentMapLight;
 use bevy::pbr::{Atmosphere, AtmosphereSettings, ScatteringMedium, ScreenSpaceReflections};
-use bevy::post_process::bloom::Bloom;
+use bevy::post_process::bloom::{Bloom, BloomCompositeMode, BloomPrefilter};
 use bevy::prelude::*;
 
 pub fn spawn_camera(
@@ -26,7 +26,19 @@ pub fn spawn_camera(
         Atmosphere::earthlike(scattering_mediums.add(ScatteringMedium::default())),
         AtmosphereSettings::default(),
         Exposure { ev100: 10.0 },
-        Bloom::ANAMORPHIC,
+        Bloom {
+            intensity: 0.15,
+            low_frequency_boost: 0.7,
+            low_frequency_boost_curvature: 0.95,
+            high_pass_frequency: 1.0,
+            prefilter: BloomPrefilter {
+                threshold: 0.0,
+                threshold_softness: 0.0,
+            },
+            composite_mode: BloomCompositeMode::EnergyConserving,
+            max_mip_dimension: 1024,
+            scale: Vec2::new(6.0, 1.5),
+        },
         AtmosphereEnvironmentMapLight::default(),
         Msaa::Off,
         Fxaa::default(),

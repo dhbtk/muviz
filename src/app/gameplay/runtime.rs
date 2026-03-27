@@ -6,10 +6,10 @@ use crate::app::AppState;
 use bevy::audio::{AudioSink, AudioSinkPlayback};
 use bevy::input::ButtonInput;
 use bevy::light::SpotLight;
-use bevy::math::{Curve, Vec3};
+use bevy::math::Vec3;
 use bevy::prelude::{
-    Commands, CommandsStatesExt, EaseFunction, EasingCurve, GlobalTransform, KeyCode, Query, Res,
-    ResMut, Time, Transform, With,
+    Commands, CommandsStatesExt, Curve, EaseFunction, EasingCurve, GlobalTransform, KeyCode, Query,
+    Res, ResMut, Time, Transform, With,
 };
 
 pub fn update_camera(
@@ -84,23 +84,20 @@ pub fn update_streetlights(
     mut query: Query<(&GlobalTransform, &mut SpotLight), With<Streetlight>>,
     song: Res<CurrentSong>,
 ) {
-    let curve = EasingCurve::new(0.0, 1.0, EaseFunction::ExponentialInOut);
+    let curve = EasingCurve::new(0.0, 1.0, EaseFunction::ExponentialIn);
     let player_coordinates = song.sample_track_point(song.current_frame_t()).position;
     // streetlights far from the player should be off.
     // streetlight intensity should be proportional to beat strength at that point times a falloff for lamps away from
     // the player.
     for (transform, mut light) in query.iter_mut() {
         let distance = player_coordinates.distance(transform.translation());
-        let cutoff = 500.0;
+        let cutoff = 200.0;
         if distance > cutoff {
             light.intensity = 0.0;
             continue;
         }
-        let falloff = curve.sample_clamped(1.0 - (distance - cutoff).clamp(0.0, cutoff) / cutoff);
         let features = song.nearest_frame(transform.translation());
-        light.intensity = 50_000_000.0
-            * (1.0 - falloff).clamp(0.2, 1.0)
-            * curve.sample_clamped((features.beat_strength + features.lane_left))
-            * 2.0;
+        let falloff = (distance / cutoff);
+        light.intensity = 25_000_000.0 * curve.sample_clamped((1.0 - falloff));
     }
 }

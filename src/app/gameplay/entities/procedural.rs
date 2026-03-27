@@ -94,7 +94,7 @@ pub fn spawn_track(
         if i % 4 != 0 {
             continue;
         }
-        let offset = if i % 2 == 0 { 10.0 } else { -10.0 };
+        let offset = if i % 8 == 0 { 10.0 } else { -10.0 };
         commands
             .spawn((
                 MainScene,
@@ -106,12 +106,11 @@ pub fn spawn_track(
                 builder.spawn((
                     Streetlight,
                     SpotLight {
-                        // color: Color::srgb(1.0, 0.71, 0.29),
                         color: Color::WHITE,
                         radius: 0.5,
-                        range: 50.0,
+                        range: 70.0,
                         intensity: 10_000_000.0,
-                        outer_angle: PI / 2.0,
+                        outer_angle: PI / 3.0,
                         shadows_enabled: false,
                         ..default()
                     },
@@ -127,6 +126,9 @@ pub fn spawn_track(
             Vec2::new(-7.5, -5.5),
         ];
         if point.is_above_other_track {
+            continue;
+        }
+        if i % 8 != 0 {
             continue;
         }
         let mut support_height_points = Vec::new();
@@ -237,7 +239,7 @@ pub fn update_track_line_emissive(
         }
     }
     let beat_color = Color::hsl(energy * 360.0, 1.0, 0.2);
-    let beat_intensity = frame.beat_strength * 150.0;
+    let beat_intensity = frame.beat_strength * 250.0;
     for handle in &cateye_materials {
         if let Some(material) = materials.get_mut(&handle.0) {
             material.base_color = beat_color;
@@ -256,7 +258,7 @@ pub fn update_track_line_emissive(
         0.6,
     );
     for handle in &guardrail_materials {
-        let light_intensity = left_lane * 3.8;
+        let light_intensity = left_lane * 3.2;
         if let Some(material) = materials.get_mut(&handle.0) {
             material.base_color = rail_color;
             material.emissive = material

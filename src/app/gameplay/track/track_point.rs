@@ -40,7 +40,8 @@ impl TrackPoint {
             pitch_delta: self.pitch_delta,
             yaw_delta: self.yaw_delta,
             roll_delta: self.roll_delta,
-            is_above_other_track: self.is_above_other_track || other.is_above_other_track,
+            is_above_other_track: self.is_above_other_track
+                || (t > 0.5 && other.is_above_other_track),
         }
     }
 
@@ -80,7 +81,7 @@ impl TrackPoint {
             pitch_delta: p1.pitch_delta + (p2.pitch_delta - p1.pitch_delta) * t,
             yaw_delta: p1.yaw_delta + (p2.yaw_delta - p1.yaw_delta) * t,
             roll_delta: p1.roll_delta + (p2.roll_delta - p1.roll_delta) * t,
-            is_above_other_track: p1.is_above_other_track,
+            is_above_other_track: p1.is_above_other_track || (t > 0.5 && p2.is_above_other_track),
         }
     }
 }

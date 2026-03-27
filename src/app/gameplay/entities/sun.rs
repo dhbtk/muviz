@@ -9,9 +9,9 @@ pub fn spawn_sun(mut commands: Commands, data: Res<CurrentSong>) {
     commands.spawn((
         MainScene,
         DirectionalLight {
-            color: Color::srgb(0.98, 0.95, 0.82),
+            color: Color::srgb(1.0, 0.83, 0.66),
             shadows_enabled: true,
-            illuminance: 600.0,
+            illuminance: 1000.0,
             ..default()
         },
         Transform::from_xyz(0.0, rng.random_range(1.0..500.0), 20_000.0)
