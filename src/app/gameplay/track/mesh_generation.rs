@@ -47,18 +47,6 @@ pub fn extrude_along_track(
         }
     }
 
-    // cap início
-    let base = 0;
-    for j in 1..shape_len - 1 {
-        indices.extend_from_slice(&[base as u32, (base + j) as u32, (base + j + 1) as u32]);
-    }
-
-    // cap final
-    let base = (frames.len() - 1) * shape_len;
-    for j in 1..shape_len - 1 {
-        indices.extend_from_slice(&[base as u32, (base + j + 1) as u32, (base + j) as u32]);
-    }
-
     let mut mesh = Mesh::new(PrimitiveTopology::TriangleList, Default::default());
 
     mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, positions);

@@ -39,18 +39,18 @@ pub fn generate_viaduct_mesh(points: &[TrackPoint]) -> Mesh {
 pub fn generate_guard_rail_meshes(points: &[TrackPoint]) -> Vec<Mesh> {
     let shapes = vec![
         vec![
-            Vec2::new(-9.1, 0.7),
-            Vec2::new(-9.4, 0.7),
-            Vec2::new(-9.4, 1.0),
-            Vec2::new(-9.1, 1.0),
-            Vec2::new(-9.1, 0.7),
+            Vec2::new(-9.0, 0.7),
+            Vec2::new(-9.9, 0.7),
+            Vec2::new(-9.9, 1.2),
+            Vec2::new(-9.0, 1.2),
+            Vec2::new(-9.0, 0.7),
         ],
         vec![
-            Vec2::new(9.4, 0.7),
-            Vec2::new(9.1, 0.7),
-            Vec2::new(9.1, 1.0),
-            Vec2::new(9.4, 1.0),
-            Vec2::new(9.4, 0.7),
+            Vec2::new(9.9, 0.7),
+            Vec2::new(9.0, 0.7),
+            Vec2::new(9.0, 1.2),
+            Vec2::new(9.9, 1.2),
+            Vec2::new(9.9, 0.7),
         ],
     ];
     let (lengths, _) = CurrentSong::compute_arc_length(points);

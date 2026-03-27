@@ -88,10 +88,13 @@ pub fn spawn_track(
             ));
         });
     let cateye_mesh = meshes.add(Cuboid::from_size(Vec3::splat(0.18)));
-    for (i, point) in resample_track_equidistant_points(&data.track_points, 40.0)
+    for (i, point) in resample_track_equidistant_points(&data.track_points, 10.0)
         .iter()
         .enumerate()
     {
+        if i % 4 != 0 {
+            continue;
+        }
         let offset = if i % 2 == 0 { 10.0 } else { -10.0 };
         commands
             .spawn((
@@ -118,11 +121,11 @@ pub fn spawn_track(
                 ));
             });
         let support_mesh_points: Vec<Vec2> = vec![
-            Vec2::new(-2.5, -1.5),
-            Vec2::new(-2.5, 1.5),
-            Vec2::new(2.5, 1.5),
-            Vec2::new(2.5, -1.5),
-            Vec2::new(-2.5, -1.5),
+            Vec2::new(-7.5, -5.5),
+            Vec2::new(-7.5, 5.5),
+            Vec2::new(7.5, 5.5),
+            Vec2::new(7.5, -5.5),
+            Vec2::new(-7.5, -5.5),
         ];
         if point.is_above_other_track {
             continue;
@@ -136,13 +139,13 @@ pub fn spawn_track(
         ));
         while starting_y > -required_length {
             let position = Vec3::new(0.0, starting_y, 0.0);
-            let rotation = Quat::from_rotation_x(PI / 2.0);
+            let rotation = Quat::from_rotation_y(point.yaw) * Quat::from_rotation_x(PI / 2.0);
             support_height_points.push(TrackPoint {
                 rotation,
                 position,
                 forward: (rotation * Vec3::Z).normalize(),
                 right: (rotation * Vec3::X).normalize(),
-                up: Vec3::Y,
+                up: (rotation * -Vec3::Y).normalize(),
                 pitch: 0.0,
                 yaw: 0.0,
                 roll: 0.0,
