@@ -113,15 +113,14 @@ fn start_debug_ui(
             (
                 FxDebugLabel,
                 Text::new(""),
-                TextLayout::new_with_justify(Justify::Right),
                 TextFont {
                     font_size: 14.0,
                     ..default()
                 },
                 Node {
                     position_type: PositionType::Absolute,
-                    bottom: Val::Px(10.0),
-                    right: Val::Px(10.0),
+                    top: Val::Px(60.0),
+                    left: Val::Px(10.0),
                     ..default()
                 }
             )
@@ -180,10 +179,34 @@ fn update_fx_debug_info(
     // let Some(material) = materials.get(&line_material.0) else {
     //     return Ok(());
     // };
+    let t = current_song.current_frame_t();
+    let frame_index = t.floor() as usize;
+    let Some(track_point) = current_song.track_points.get(frame_index) else {
+        return Ok(());
+    };
     let line_material = line_materials.iter().next().unwrap();
     let mut label = fx_label_query.single_mut()?;
     let material = materials.get(&line_material.0).unwrap();
-    label.0 = format!("emissive: {:.2}", material.emissive.red);
+    label.0 = format!(
+        "emissive: {:.2}\n\
+            pitch: {:03.2} yaw: {:03.2} roll: {:03.2}\n\
+            speed: {:03.2} acceleration: {:03.4}\n\
+            current_beat: {:06.2}\n\
+            pitch_delta: {:03.4} yaw_delta: {:03.4} roll_delta: {:03.4}\n\
+            yaw_flip_interval: {} pitch_flip_interval: {}",
+        material.emissive.red,
+        track_point.pitch,
+        track_point.yaw,
+        track_point.roll,
+        track_point.speed,
+        track_point.acceleration,
+        track_point.current_beat,
+        track_point.pitch_delta,
+        track_point.yaw_delta,
+        track_point.roll_delta,
+        track_point.yaw_flip_interval,
+        track_point.pitch_flip_interval,
+    );
     Ok(())
 }
 

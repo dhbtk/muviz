@@ -46,26 +46,29 @@ pub fn generate_track_points(
     let mut points: Vec<TrackPoint> = Vec::with_capacity(frames.len());
     let bps = analysis.estimated_bpm.unwrap_or(120.0) / 60.;
 
-    let beat_intervals = vec![2, 4, 8, 12, 16, 24, 32];
+    let mut beat_intervals = vec![2, 4, 8, 12];
+    if bps < 2.0 {
+        beat_intervals = beat_intervals.into_iter().map(|i| i / 2).collect();
+    }
 
-    let mut yaw_flip_interval = beat_intervals[rng.random_range(0..beat_intervals.len() - 1)];
-    let mut pitch_flip_interval = beat_intervals[rng.random_range(0..beat_intervals.len() - 1)];
+    let mut yaw_flip_interval = beat_intervals[rng.random_range(0..beat_intervals.len())];
+    let mut pitch_flip_interval = beat_intervals[rng.random_range(0..beat_intervals.len())];
     let curve = EasingCurve::new(0.0, 1.0, EaseFunction::SmootherStep);
-    let pitch_scale = 0.16;
+    let pitch_scale = 0.0096;
     let yaw_scale = 0.044;
     let yaw_delta_decay = 0.0001;
     let yaw_delta_limit = 0.15;
-    let yaw_recentering_force = 0.002;
-    let pitch_delta_decay = 0.012;
+    let yaw_recentering_force = 0.006;
+    let pitch_delta_decay = 0.00012;
     let pitch_delta_limit = 0.02;
     let pitch_recentering_force = 0.0002;
     let pitch_limit = PI / 8.;
     let roll_limit = PI / 12.;
     let damping = 0.95;
     let springiness = 0.03;
-    let acceleration_decay = 0.005;
-    let acceleration_scale = 0.01;
-    let acceleration_limit = 0.02;
+    let acceleration_decay = 0.002;
+    let acceleration_scale = 0.002;
+    let acceleration_limit = 0.01;
     let speed_decay = 0.001;
     let min_speed = 1.0;
     let max_speed = 1.5;
@@ -77,19 +80,31 @@ pub fn generate_track_points(
     let mut rotation = Quat::IDENTITY;
     let mut position = Vec3::ZERO;
     let mut acceleration = 0.0;
+    let mut previous_beat_index: i32 = -1;
+    let mut yaw_sign = 1.0;
+    let mut pitch_sign = 1.0;
 
     for frame in frames {
+        let current_beat = frame.time_s / bps;
+        let beat_index = current_beat.floor() as i32;
+        let beat_changed = beat_index != previous_beat_index;
+        previous_beat_index = beat_index;
+
         let mut yaw_delta = curve.sample_clamped(
             (frame.lane_left - frame.lane_right) * (0.5 + frame.beat_strength * 0.5),
         ) * yaw_scale;
-        if ((frame.time_s / bps) % yaw_flip_interval as f32) as i32 % 2 == 0 {
-            yaw_delta = -yaw_delta;
+        if beat_changed && beat_index > 0 && beat_index % yaw_flip_interval == 0 {
+            yaw_sign = -yaw_sign;
             let prev = yaw_flip_interval;
             while prev == yaw_flip_interval {
-                yaw_flip_interval = beat_intervals[rng.random_range(0..beat_intervals.len() - 1)];
+                yaw_flip_interval = beat_intervals[rng.random_range(0..beat_intervals.len())];
             }
-            debug!("yaw flip interval: {} -> {}", prev, yaw_flip_interval);
+            debug!(
+                "[{:03.2}] yaw flip interval: {} -> {}",
+                frame.time_s, prev, yaw_flip_interval
+            );
         }
+        yaw_delta *= yaw_sign;
         if yaw_delta > 0. {
             yaw_delta = 0.0_f32
                 .max(yaw_delta - yaw_delta_decay)
@@ -111,14 +126,18 @@ pub fn generate_track_points(
         }
         let mut pitch_delta = (frame.energy * 0.3 + frame.lane_center * 0.7) * pitch_scale;
         // - (frame.beat_strength * frame.energy * -0.02);
-        if ((frame.time_s / bps) % pitch_flip_interval as f32) as i32 % 2 == 0 {
-            pitch_delta = -pitch_delta;
+        if beat_changed && beat_index > 0 && beat_index % pitch_flip_interval == 0 {
+            pitch_sign = -pitch_sign;
             let prev = pitch_flip_interval;
             while prev == pitch_flip_interval {
-                pitch_flip_interval = beat_intervals[rng.random_range(0..beat_intervals.len() - 1)];
+                pitch_flip_interval = beat_intervals[rng.random_range(0..beat_intervals.len())];
             }
-            debug!("pitch flip interval: {} -> {}", prev, pitch_flip_interval);
+            debug!(
+                "[{:03.2}] pitch flip interval: {} -> {}",
+                frame.time_s, prev, pitch_flip_interval
+            );
         }
+        pitch_delta *= pitch_sign;
         if pitch_delta > 0. {
             pitch_delta = 0.0_f32
                 .max(pitch_delta - pitch_delta_decay)
@@ -158,9 +177,21 @@ pub fn generate_track_points(
             * curve.sample_clamped(
                 frame.beat_strength * 0.2 + frame.energy * 0.4 + frame.lane_center * 0.4,
             );
-        acceleration -= acceleration_decay;
-        acceleration = acceleration.clamp(-acceleration_limit, acceleration_limit);
-        speed = (speed + acceleration - speed_decay).clamp(min_speed, max_speed);
+        if pitch < 0. {
+            acceleration -= acceleration_decay * (pitch.abs() / pitch_limit);
+        } else if pitch > 0. {
+            acceleration += acceleration_decay * (pitch.abs() / pitch_limit) * 0.3;
+        }
+        if acceleration > 0. {
+            acceleration = 0.0_f32
+                .max(acceleration - acceleration_decay)
+                .min(acceleration_limit);
+        } else if acceleration < 0. {
+            acceleration = 0.0_f32
+                .min(acceleration + acceleration_decay)
+                .max(-acceleration_limit);
+        }
+        speed = (speed + (acceleration - speed_decay) * 0.2).clamp(min_speed, max_speed);
 
         position += forward * speed;
 
@@ -170,6 +201,17 @@ pub fn generate_track_points(
             forward,
             right,
             up,
+            pitch,
+            yaw,
+            roll,
+            speed,
+            acceleration,
+            current_beat,
+            yaw_flip_interval: yaw_flip_interval as f32,
+            pitch_flip_interval: pitch_flip_interval as f32,
+            pitch_delta,
+            yaw_delta,
+            roll_delta,
         });
     }
 

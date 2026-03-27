@@ -1,4 +1,5 @@
 use crate::analysis::audio_decode::interleaved_to_mono;
+use crate::analysis::compressor::Compressor;
 use crate::analysis::util::resample_mono;
 use crate::{HOP_SIZE, RESAMPLE_CHUNK_SIZE, SAMPLE_RATE, WINDOW_SIZE};
 use anyhow::Result;
@@ -10,6 +11,7 @@ use tracing::instrument;
 
 pub mod audio_decode;
 pub mod beat;
+pub mod compressor;
 pub mod features;
 pub mod fft;
 pub mod gameplay;
@@ -77,6 +79,7 @@ pub fn analyze_file(path: &std::path::Path) -> Result<TrackAnalysis> {
     let mono = interleaved_to_mono(&decoded.samples_interleaved, decoded.channels);
 
     let mono = resample_mono(&mono, decoded.sample_rate, SAMPLE_RATE, RESAMPLE_CHUNK_SIZE)?;
+    let mono = Compressor::new().process_samples(&mono);
 
     let mut config = AnalysisConfig::default();
     config.target_sample_rate = SAMPLE_RATE;

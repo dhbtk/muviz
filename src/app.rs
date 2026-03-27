@@ -9,6 +9,7 @@ pub mod playback;
 use crate::app::analyze::AnalyzePlugin;
 use crate::app::assets::GlobalAssets;
 use crate::app::debug_ui::DebugUiPlugin;
+use crate::app::file_picker::resources::FilePicker;
 use crate::app::playback::PlaybackPlugin;
 use bevy::asset::UnapprovedPathMode;
 use bevy::log::{Level, LogPlugin};
@@ -96,8 +97,12 @@ pub enum AppState {
     Gameplay,
 }
 
-fn read_args(args: Res<Args>, mut commands: Commands) {
-    if args.input.is_some() {
+fn read_args(args: Res<Args>, mut file_picker: ResMut<FilePicker>, mut commands: Commands) {
+    if let Some(path) = &args.input {
+        let path = path.to_owned().canonicalize().unwrap();
+        file_picker.current_dir = path.parent().unwrap().to_owned();
+        file_picker.refresh().unwrap();
+        file_picker.select_file(path);
         commands.set_state(AppState::Analyze);
     } else {
         commands.set_state(AppState::FilePicker);

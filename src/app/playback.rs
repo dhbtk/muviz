@@ -1,10 +1,12 @@
 use crate::analysis::audio_decode::codec_registry;
+use crate::analysis::compressor::Compressor;
+use crate::SAMPLE_RATE;
 use bevy::audio::{AddAudioSource, Decodable, Source};
 use bevy::prelude::*;
 use std::fs::File;
 use std::path::Path;
 use std::time::Duration;
-use symphonia::core::audio::SampleBuffer;
+use symphonia::core::audio::{AudioBufferRef, SampleBuffer, Signal};
 use symphonia::core::codecs::{Decoder, DecoderOptions};
 use symphonia::core::formats::{FormatOptions, FormatReader};
 use symphonia::core::io::MediaSourceStream;
@@ -25,6 +27,8 @@ pub struct SongDecoder {
     channels: u16,
     sample_rate: u32,
     total_duration: Option<Duration>,
+    left_chan_compressor: Compressor,
+    right_chan_compressor: Compressor,
 }
 
 pub struct PlaybackPlugin;
@@ -71,6 +75,8 @@ impl SongDecoder {
             channels,
             sample_rate,
             total_duration,
+            left_chan_compressor: Compressor::new(),
+            right_chan_compressor: Compressor::new(),
         })
     }
 
@@ -100,11 +106,29 @@ impl SongDecoder {
                 Err(symphonia::core::errors::Error::DecodeError(_)) => continue,
                 Err(_) => return false,
             };
+            let sample_buf = if let AudioBufferRef::F32(mut buf) = decoded {
+                let buf = buf.to_mut();
+                let (left, right) = buf.chan_pair_mut(0, 1);
+                for sample in left.iter_mut() {
+                    *sample = self
+                        .left_chan_compressor
+                        .process_sample(*sample, 1.0 / SAMPLE_RATE as f32);
+                }
+                for sample in right.iter_mut() {
+                    *sample = self
+                        .right_chan_compressor
+                        .process_sample(*sample, 1.0 / SAMPLE_RATE as f32);
+                }
 
-            let spec = *decoded.spec();
-            let duration = decoded.capacity() as u64;
-            let mut sample_buf = SampleBuffer::<f32>::new(duration, spec);
-            sample_buf.copy_interleaved_ref(decoded);
+                let spec = *buf.spec();
+                let duration = buf.capacity() as u64;
+                let mut sample_buf = SampleBuffer::<f32>::new(duration, spec);
+                sample_buf
+                    .copy_interleaved_ref(AudioBufferRef::F32(std::borrow::Cow::Borrowed(buf)));
+                sample_buf
+            } else {
+                return false;
+            };
 
             self.sample_buf = Some(sample_buf);
             self.sample_idx = 0;

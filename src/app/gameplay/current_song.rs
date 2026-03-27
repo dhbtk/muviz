@@ -86,6 +86,17 @@ impl CurrentSong {
                 forward: Vec3::Z,
                 right: Vec3::X,
                 up: Vec3::Y,
+                pitch: 0.0,
+                yaw: 0.0,
+                roll: 0.0,
+                speed: 0.0,
+                acceleration: 0.0,
+                current_beat: 0.0,
+                yaw_flip_interval: 0.0,
+                pitch_flip_interval: 0.0,
+                pitch_delta: 0.0,
+                yaw_delta: 0.0,
+                roll_delta: 0.0,
             };
         }
 

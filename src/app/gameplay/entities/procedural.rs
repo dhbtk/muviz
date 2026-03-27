@@ -119,6 +119,17 @@ pub fn spawn_track(
                 forward: (rotation * Vec3::Z).normalize(),
                 right: (rotation * Vec3::X).normalize(),
                 up: Vec3::Y,
+                pitch: 0.0,
+                yaw: 0.0,
+                roll: 0.0,
+                speed: 0.0,
+                acceleration: 0.0,
+                current_beat: 0.0,
+                yaw_flip_interval: 0.0,
+                pitch_flip_interval: 0.0,
+                pitch_delta: 0.0,
+                yaw_delta: 0.0,
+                roll_delta: 0.0,
             });
             starting_y += -3.0;
         }
