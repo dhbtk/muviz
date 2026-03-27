@@ -97,6 +97,7 @@ impl CurrentSong {
                 pitch_delta: 0.0,
                 yaw_delta: 0.0,
                 roll_delta: 0.0,
+                is_above_other_track: false,
             };
         }
 

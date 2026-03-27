@@ -3,6 +3,7 @@ use crate::app::gameplay::current_song::CurrentSong;
 use crate::app::gameplay::entities::procedural::SongTrackLine;
 use crate::app::AppState;
 use anyhow::anyhow;
+use bevy::color::palettes::css;
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 
@@ -191,21 +192,24 @@ fn update_fx_debug_info(
         "emissive: {:.2}\n\
             pitch: {:03.2} yaw: {:03.2} roll: {:03.2}\n\
             speed: {:03.2} acceleration: {:03.4}\n\
-            current_beat: {:06.2}\n\
+            bpm: {:.1} current_beat: {:06.2}\n\
             pitch_delta: {:03.4} yaw_delta: {:03.4} roll_delta: {:03.4}\n\
-            yaw_flip_interval: {} pitch_flip_interval: {}",
+            yaw_flip_interval: {} pitch_flip_interval: {}\n\
+            is_above_other_track: {}",
         material.emissive.red,
         track_point.pitch,
         track_point.yaw,
         track_point.roll,
         track_point.speed,
         track_point.acceleration,
+        current_song.track_analysis.estimated_bpm.unwrap_or(0.0),
         track_point.current_beat,
         track_point.pitch_delta,
         track_point.yaw_delta,
         track_point.roll_delta,
         track_point.yaw_flip_interval,
         track_point.pitch_flip_interval,
+        track_point.is_above_other_track,
     );
     Ok(())
 }
@@ -547,7 +551,13 @@ fn draw_mini_map(
         let p0 = to_3d(f0.position.x, f0.position.z);
         let p1 = to_3d(f1.position.x, f1.position.z);
 
-        gizmos.line(p0, p1, Color::WHITE);
+        let color = if f0.is_above_other_track {
+            css::ORANGE
+        } else {
+            css::AQUA
+        };
+
+        gizmos.line(p0, p1, color);
     }
 
     let current_position = data.sample_track_point(data.current_frame_t()).position;

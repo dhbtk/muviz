@@ -5,7 +5,41 @@ use bevy::prelude::{EaseFunction, EasingCurve};
 use rand::prelude::SmallRng;
 use rand::{RngExt, SeedableRng};
 use std::f32::consts::PI;
+use std::ops::Div;
 use tracing::{debug, info};
+
+fn find_overlap_with_previous_points(
+    candidate: Vec3,
+    points: &[TrackPoint],
+    ignore_recent_points: usize,
+    horizontal_radius: f32,
+    vertical_clearance: f32,
+) -> Option<usize> {
+    if points.len() <= ignore_recent_points {
+        return None;
+    }
+
+    let search_end = points.len() - ignore_recent_points;
+    let radius_sq = horizontal_radius * horizontal_radius;
+
+    points[..search_end]
+        .iter()
+        .enumerate()
+        .find_map(|(i, point)| {
+            let dx = candidate.x - point.position.x;
+            let dz = candidate.z - point.position.z;
+            let horizontal_dist_sq = dx * dx + dz * dz;
+
+            if horizontal_dist_sq <= radius_sq
+                && (candidate.y - point.position.y).abs() < vertical_clearance
+            {
+                Some(i)
+            } else {
+                None
+            }
+        })
+}
+
 pub fn resample_track_equidistant_points(points: &[TrackPoint], distance: f32) -> Vec<TrackPoint> {
     if points.len() < 2 || distance <= 0.0 {
         return points.to_vec();
@@ -46,10 +80,7 @@ pub fn generate_track_points(
     let mut points: Vec<TrackPoint> = Vec::with_capacity(frames.len());
     let bps = analysis.estimated_bpm.unwrap_or(120.0) / 60.;
 
-    let mut beat_intervals = vec![2, 4, 8, 12];
-    if bps < 2.0 {
-        beat_intervals = beat_intervals.into_iter().map(|i| i / 2).collect();
-    }
+    let beat_intervals = vec![1, 2, 2, 3, 3, 4, 4];
 
     let mut yaw_flip_interval = beat_intervals[rng.random_range(0..beat_intervals.len())];
     let mut pitch_flip_interval = beat_intervals[rng.random_range(0..beat_intervals.len())];
@@ -72,6 +103,10 @@ pub fn generate_track_points(
     let speed_decay = 0.001;
     let min_speed = 1.0;
     let max_speed = 1.5;
+    let overlap_horizontal_radius = 24.0;
+    let overlap_vertical_clearance = 24.0;
+    let overlap_ignore_recent_points = 24;
+    let overlap_max_backtrack_points = 720;
 
     let mut pitch = 0.0;
     let mut yaw = 0.0;
@@ -91,7 +126,12 @@ pub fn generate_track_points(
         previous_beat_index = beat_index;
 
         let mut yaw_delta = curve.sample_clamped(
-            (frame.lane_left - frame.lane_right) * (0.5 + frame.beat_strength * 0.5),
+            (if frame.lane_left + frame.lane_right > 1.0 {
+                frame.lane_left - frame.lane_right
+            } else {
+                frame.lane_left + frame.lane_right
+            }) * 0.95
+                + frame.beat_strength * 0.05,
         ) * yaw_scale;
         if beat_changed && beat_index > 0 && beat_index % yaw_flip_interval == 0 {
             yaw_sign = -yaw_sign;
@@ -195,6 +235,40 @@ pub fn generate_track_points(
 
         position += forward * speed;
 
+        let mut is_above_other_track = false;
+        if let Some(overlap_index) = find_overlap_with_previous_points(
+            position,
+            &points,
+            overlap_ignore_recent_points,
+            overlap_horizontal_radius,
+            overlap_vertical_clearance,
+        ) {
+            let overlap_y = points[overlap_index].position.y;
+            let y_delta = position.y - overlap_y;
+            if y_delta >= overlap_vertical_clearance {
+                is_above_other_track = true;
+            }
+            let required_clearance = overlap_vertical_clearance - y_delta.abs();
+
+            if required_clearance > 0.0 {
+                let direction = 1.0; // always go up
+                let max_vertical_step = (speed * pitch_limit.div(5.0).sin()).abs().max(0.001);
+                let desired_steps = (required_clearance / max_vertical_step).ceil() as usize;
+                let backtrack_steps = desired_steps.clamp(1, overlap_max_backtrack_points);
+                let available_steps = points.len().min(backtrack_steps);
+                let start = points.len().saturating_sub(available_steps);
+                let per_step = direction * (required_clearance / available_steps as f32);
+
+                for (offset, point) in points[start..].iter_mut().enumerate() {
+                    point.position.y += per_step * (offset as f32 + 1.0);
+                    point.is_above_other_track = true;
+                }
+
+                position.y += per_step * available_steps as f32;
+                is_above_other_track = true;
+            }
+        }
+
         points.push(TrackPoint {
             rotation,
             position,
@@ -212,6 +286,7 @@ pub fn generate_track_points(
             pitch_delta,
             yaw_delta,
             roll_delta,
+            is_above_other_track,
         });
     }
 

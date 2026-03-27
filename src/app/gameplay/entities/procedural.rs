@@ -103,6 +103,9 @@ pub fn spawn_track(
             Vec2::new(2.5, -1.5),
             Vec2::new(-2.5, -1.5),
         ];
+        if point.is_above_other_track {
+            continue;
+        }
         let mut support_height_points = Vec::new();
         let mut starting_y = 0.0;
         let required_length = point.position.distance(Vec3::new(
@@ -130,6 +133,7 @@ pub fn spawn_track(
                 pitch_delta: 0.0,
                 yaw_delta: 0.0,
                 roll_delta: 0.0,
+                is_above_other_track: false,
             });
             starting_y += -3.0;
         }
