@@ -12,6 +12,7 @@ use crate::app::debug_ui::DebugUiPlugin;
 use crate::app::file_picker::resources::FilePicker;
 use crate::app::playback::PlaybackPlugin;
 use bevy::asset::UnapprovedPathMode;
+use bevy::image::{ImageAddressMode, ImageSamplerDescriptor};
 use bevy::log::{Level, LogPlugin};
 use bevy::prelude::*;
 use bevy::window::WindowMode;
@@ -49,6 +50,14 @@ pub fn run_app(args: Args) {
                 .set(AssetPlugin {
                     unapproved_path_mode: UnapprovedPathMode::Deny,
                     ..default()
+                })
+                .set(ImagePlugin {
+                    default_sampler: ImageSamplerDescriptor {
+                        address_mode_u: ImageAddressMode::Repeat,
+                        address_mode_v: ImageAddressMode::Repeat,
+                        address_mode_w: ImageAddressMode::Repeat,
+                        ..ImageSamplerDescriptor::linear()
+                    },
                 }),
         )
         .init_state::<AppState>()

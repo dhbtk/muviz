@@ -159,6 +159,7 @@ pub fn spawn_track(
         let transforms = vec![
             Affine2::from_scale(Vec2::new(1.5, 1.2)),
             Affine2::from_scale(Vec2::new(1.5, 1.2)),
+            Affine2::from_scale(Vec2::new(1.5, 1.2)),
         ];
         while starting_y > -required_length {
             let position = Vec3::new(0.0, starting_y, 0.0);
@@ -175,8 +176,12 @@ pub fn spawn_track(
             i += 1;
         }
         let (lengths, _) = CurrentSong::compute_arc_length(&support_height_points);
-        let pillar_mesh =
-            extrude_along_track(&support_height_points, &support_mesh_points, &lengths);
+        let pillar_mesh = extrude_along_track(
+            &support_height_points,
+            &support_mesh_points,
+            &lengths,
+            Vec2::ONE,
+        );
         commands.spawn((
             MainScene,
             SongTrack,

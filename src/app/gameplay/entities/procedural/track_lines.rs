@@ -20,8 +20,8 @@ pub fn generate_edge_line_meshes(points: &[TrackPoint]) -> (Mesh, Mesh) {
     let (left_lengths, _) = CurrentSong::compute_arc_length(points);
     let (right_lengths, _) = CurrentSong::compute_arc_length(points);
     (
-        mesh_generation::extrude_along_track(points, &left_track_shape, &left_lengths),
-        mesh_generation::extrude_along_track(points, &right_track_shape, &right_lengths),
+        mesh_generation::extrude_along_track(points, &left_track_shape, &left_lengths, Vec2::ONE),
+        mesh_generation::extrude_along_track(points, &right_track_shape, &right_lengths, Vec2::ONE),
     )
 }
 
@@ -58,7 +58,7 @@ pub fn generate_lane_line_meshes(
                 let dash_points = &points[start..end];
                 let (lengths, _) = CurrentSong::compute_arc_length(dash_points);
                 let dash_mesh =
-                    mesh_generation::extrude_along_track(dash_points, &lane_shape, &lengths);
+                    mesh_generation::extrude_along_track(dash_points, &lane_shape, &lengths, Vec2::ONE);
 
                 let Some(VertexAttributeValues::Float32x3(dash_positions)) =
                     dash_mesh.attribute(Mesh::ATTRIBUTE_POSITION)

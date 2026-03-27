@@ -17,7 +17,7 @@ pub fn generate_track_mesh(points: &[TrackPoint]) -> Mesh {
     ];
     let (lengths, _) = CurrentSong::compute_arc_length(points);
 
-    mesh_generation::extrude_along_track(points, &track_shape, &lengths)
+    mesh_generation::extrude_along_track(points, &track_shape, &lengths, Vec2::ONE * 0.3)
 }
 
 pub fn generate_viaduct_mesh(points: &[TrackPoint]) -> Mesh {
@@ -34,7 +34,7 @@ pub fn generate_viaduct_mesh(points: &[TrackPoint]) -> Mesh {
         Vec2::new(-9.0, 0.0),
     ];
     let (lengths, _) = CurrentSong::compute_arc_length(points);
-    mesh_generation::extrude_along_track(points, &track_shape, &lengths)
+    mesh_generation::extrude_along_track(points, &track_shape, &lengths, Vec2::ONE)
 }
 
 // shapes are, in order:
@@ -77,7 +77,7 @@ pub fn generate_guard_rail_meshes(points: &[TrackPoint]) -> (Vec<Mesh>, Vec<Mesh
     let (lengths, _) = CurrentSong::compute_arc_length(points);
     let left_side = shapes
         .iter()
-        .map(|shape| mesh_generation::extrude_along_track(points, shape, &lengths))
+        .map(|shape| mesh_generation::extrude_along_track(points, shape, &lengths, Vec2::ONE))
         .collect();
     let right_side = shapes
         .iter()
@@ -87,7 +87,7 @@ pub fn generate_guard_rail_meshes(points: &[TrackPoint]) -> (Vec<Mesh>, Vec<Mesh
                 .map(|point| point * Vec2::new(-1.0, 1.0))
                 .rev()
                 .collect::<Vec<_>>();
-            mesh_generation::extrude_along_track(points, &mirrored_shape, &lengths)
+            mesh_generation::extrude_along_track(points, &mirrored_shape, &lengths, Vec2::ONE)
         })
         .collect();
     (left_side, right_side)

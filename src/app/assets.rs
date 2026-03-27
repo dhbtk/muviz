@@ -51,14 +51,11 @@ impl FromWorld for TrackMaterials {
 
         let asphalt_base_color = images.asphalt_base_color.clone();
         let asphalt_ambient_occlusion = images.asphalt_ambient_occlusion.clone();
-        let asphalt_displacement = images.asphalt_displacement.clone();
         let asphalt_normal = images.asphalt_normal.clone();
-        let asphalt_roughness = images.asphalt_roughness.clone();
         let asphalt_metallic = images.asphalt_metallic.clone();
 
         let concrete_base_color = images.concrete_base_color.clone();
         let concrete_ambient_occlusion = images.concrete_ambient_occlusion.clone();
-        let concrete_displacement = images.concrete_displacement.clone();
         let concrete_normal = images.concrete_normal.clone();
         let concrete_roughness = images.concrete_roughness.clone();
         let concrete_metallic = images.concrete_metallic.clone();
@@ -67,17 +64,15 @@ impl FromWorld for TrackMaterials {
         let asphalt_material = materials.add(StandardMaterial {
             base_color_texture: Some(asphalt_base_color),
             occlusion_texture: Some(asphalt_ambient_occlusion),
-            depth_map: Some(asphalt_displacement),
             normal_map_texture: Some(asphalt_normal),
-            metallic_roughness_texture: Some(asphalt_roughness),
-            perceptual_roughness: 1.0,
-            reflectance: 0.1,
+            metallic: 0.0,
+            perceptual_roughness: 0.75,
+            reflectance: 0.04,
             ..default()
         });
         let concrete_material = materials.add(StandardMaterial {
             base_color_texture: Some(concrete_base_color),
             occlusion_texture: Some(concrete_ambient_occlusion),
-            depth_map: Some(concrete_displacement),
             normal_map_texture: Some(concrete_normal),
             metallic_roughness_texture: Some(concrete_roughness),
             perceptual_roughness: 1.0,

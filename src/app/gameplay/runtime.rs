@@ -98,6 +98,6 @@ pub fn update_streetlights(
         }
         let features = song.nearest_frame(transform.translation());
         let falloff = (distance / cutoff);
-        light.intensity = 25_000_000.0 * curve.sample_clamped((1.0 - falloff));
+        light.intensity = 15_000_000.0 * curve.sample_clamped((1.0 - falloff));
     }
 }
