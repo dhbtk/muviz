@@ -8,7 +8,7 @@ default-run = "muviz"
 anyhow = "1.0.102"
 audioadapter = "2.0.0"
 audioadapter-buffers = "2.0.0"
-bevy = { version = "0.18.1", features = ["debug", "dynamic_linking"] }
+bevy = { version = "0.18.1", features = ["debug", "dynamic_linking", "jpeg", "tiff"] }
 clap = { version = "4.6.0", features = ["derive"] }
 realfft = "3.5.0"
 rubato = "1.0.1"

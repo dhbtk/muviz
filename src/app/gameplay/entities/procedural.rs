@@ -1,6 +1,6 @@
 pub mod track_lines;
 
-use crate::app::assets::GlobalAssets;
+use crate::app::assets::{GlobalAssets, TrackMaterials};
 use crate::app::gameplay::current_song::CurrentSong;
 use crate::app::gameplay::entities::MainScene;
 use crate::app::gameplay::track::mesh_generation::{extrude_along_track, TrackLinePoint};
@@ -19,6 +19,7 @@ pub fn spawn_track(
     mut materials: ResMut<Assets<StandardMaterial>>,
     data: Res<CurrentSong>,
     assets: Res<GlobalAssets>,
+    track_materials: Res<TrackMaterials>,
 ) {
     let track_min_y = data.track_min_y();
     let resampled_distance_points = resample_track_equidistant_points(&data.track_points, 1.0);
@@ -28,11 +29,7 @@ pub fn spawn_track(
             MainScene,
             SongTrack,
             Mesh3d(meshes.add(mesh)),
-            MeshMaterial3d(materials.add(StandardMaterial {
-                base_color: Color::srgb(0.05, 0.05, 0.05),
-                perceptual_roughness: 0.9,
-                ..default()
-            })),
+            MeshMaterial3d(track_materials.asphalt_material.clone()),
         ))
         .with_children(|builder| {
             let mesh_list = generate_line_meshes(&resampled_distance_points);
@@ -51,11 +48,7 @@ pub fn spawn_track(
             })
         });
     let viaduct_mesh = generate_viaduct_mesh(&resampled_distance_points);
-    let viaduct_material = materials.add(StandardMaterial {
-        base_color: Color::srgb(0.3, 0.3, 0.3),
-        perceptual_roughness: 0.7,
-        ..default()
-    });
+    let viaduct_material = track_materials.concrete_material.clone();
     commands.spawn((
         MainScene,
         SongTrack,

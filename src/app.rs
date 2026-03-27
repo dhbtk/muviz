@@ -7,7 +7,7 @@ pub mod gameplay;
 pub mod playback;
 
 use crate::app::analyze::AnalyzePlugin;
-use crate::app::assets::GlobalAssets;
+use crate::app::assets::{GlobalAssets, TrackMaterialImages, TrackMaterials};
 use crate::app::debug_ui::DebugUiPlugin;
 use crate::app::file_picker::resources::FilePicker;
 use crate::app::playback::PlaybackPlugin;
@@ -55,7 +55,9 @@ pub fn run_app(args: Args) {
         .add_loading_state(
             LoadingState::new(AppState::Loading)
                 .continue_to_state(AppState::Initial)
-                .load_collection::<GlobalAssets>(),
+                .load_collection::<GlobalAssets>()
+                .load_collection::<TrackMaterialImages>()
+                .finally_init_resource::<TrackMaterials>(),
         )
         .add_plugins(FilePickerPlugin)
         .add_plugins(AnalyzePlugin)
