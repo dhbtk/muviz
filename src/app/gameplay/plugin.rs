@@ -11,6 +11,7 @@ use bevy::app::{App, Plugin, Update};
 use bevy::camera::ClearColor;
 use bevy::color::Color;
 use bevy::light::GlobalAmbientLight;
+use bevy::pbr::wireframe::WireframePlugin;
 use bevy::pbr::{DefaultOpaqueRendererMethod, ExtendedMaterial, MaterialPlugin, StandardMaterial};
 use bevy::prelude::{in_state, IntoScheduleConfigs, OnEnter, OnExit};
 
@@ -22,6 +23,7 @@ impl Plugin for GameplayPlugin {
             .insert_resource(ClearColor(Color::BLACK))
             .insert_resource(GlobalAmbientLight::NONE)
             .add_plugins(MaterialPlugin::<ExtendedMaterial<StandardMaterial, Water>>::default())
+            .add_plugins(WireframePlugin::default())
             .add_systems(
                 OnEnter(AppState::Gameplay),
                 (

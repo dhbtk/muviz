@@ -292,7 +292,7 @@ pub fn generate_track_points(
         let list = points.iter().enumerate().any(|(j, p1)| {
             p1.position.y < p.position.y
                 && Vec2::distance(p1.position.xz(), p.position.xz()) < 24.0
-                && (j as i32 <= i as i32 - 24 || j >= i + 24)
+                && (j as i32 <= i as i32 - 25 || j >= i + 25)
         });
         if list {
             points[i].is_above_other_track = true;

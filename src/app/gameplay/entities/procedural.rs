@@ -68,24 +68,48 @@ pub fn spawn_track(
         perceptual_roughness: 0.1,
         ..default()
     });
-    let guardrail_material = materials.add(StandardMaterial {
+    let guardrail_material_low = materials.add(StandardMaterial {
         base_color: Color::linear_rgb(0.0, 0.0, 0.0),
         emissive: LinearRgba::rgb(0.0, 0.0, 0.0),
         perceptual_roughness: 0.1,
         ..default()
     });
-    let guardrail_meshes = generate_guard_rail_meshes(&resampled_distance_points);
-    guardrail_meshes
-        .into_iter()
-        .enumerate()
-        .for_each(|(i, mesh)| {
-            commands.spawn((
-                MainScene,
-                GuardRail(0),
-                Mesh3d(meshes.add(mesh)),
-                MeshMaterial3d(guardrail_material.clone()),
-            ));
-        });
+    let guardrail_material_mid = materials.add(StandardMaterial {
+        base_color: Color::linear_rgb(0.0, 0.0, 0.0),
+        emissive: LinearRgba::rgb(0.0, 0.0, 0.0),
+        perceptual_roughness: 0.1,
+        ..default()
+    });
+    let guardrail_material_high = materials.add(StandardMaterial {
+        base_color: Color::linear_rgb(0.0, 0.0, 0.0),
+        emissive: LinearRgba::rgb(0.0, 0.0, 0.0),
+        perceptual_roughness: 0.1,
+        ..default()
+    });
+    let (left_rails, right_rails) = generate_guard_rail_meshes(&resampled_distance_points);
+    for shapes in [left_rails, right_rails].into_iter() {
+        for (i, shape) in shapes.into_iter().enumerate() {
+            if i % 2 == 0 {
+                let material = [
+                    &guardrail_material_low,
+                    &guardrail_material_mid,
+                    &guardrail_material_high,
+                ][(i / 2) % 3];
+                commands.spawn((
+                    MainScene,
+                    GuardRail(i / 2),
+                    Mesh3d(meshes.add(shape)),
+                    MeshMaterial3d(material.clone()),
+                ));
+            } else {
+                commands.spawn((
+                    MainScene,
+                    Mesh3d(meshes.add(shape)),
+                    MeshMaterial3d(viaduct_material.clone()),
+                ));
+            }
+        }
+    }
     let cateye_mesh = meshes.add(Cuboid::from_size(Vec3::splat(0.18)));
     for (i, point) in resample_track_equidistant_points(&data.track_points, 10.0)
         .iter()
@@ -223,12 +247,12 @@ pub fn update_track_line_emissive(
     song: Res<CurrentSong>,
     line_materials: Query<&MeshMaterial3d<StandardMaterial>, With<SongTrackLine>>,
     cateye_materials: Query<&MeshMaterial3d<StandardMaterial>, With<Cateye>>,
-    guardrail_materials: Query<&MeshMaterial3d<StandardMaterial>, With<GuardRail>>,
+    guardrail_materials: Query<(&GuardRail, &MeshMaterial3d<StandardMaterial>), With<GuardRail>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
+    let curve = EasingCurve::new(0.0, 1.0, EaseFunction::SmootherStep);
     let frame = song.sample_gameplay_frame(song.current_frame_t());
-    let energy = EasingCurve::new(0.0, 1.0, EaseFunction::SmootherStep)
-        .sample_clamped(frame.energy.max(0.0));
+    let energy = curve.sample_clamped(frame.energy.max(0.0));
     let light_intensity = energy * 1.0;
     for handle in &line_materials {
         if let Some(material) = materials.get_mut(&handle.0) {
@@ -250,20 +274,43 @@ pub fn update_track_line_emissive(
     }
     let bps = song.track_analysis.estimated_bpm.unwrap_or(120.0) / 60.;
     let beat_frac = (frame.time_s / bps).fract();
-    let left_lane =
-        EasingCurve::new(0.0, 1.0, EaseFunction::SmootherStep).sample_clamped(frame.lane_left);
-    let rail_color = Color::hsl(
-        (left_lane * 360.0 + 120.0 + (360.0 * beat_frac)) % 360.0,
-        1.0,
-        0.6,
-    );
-    for handle in &guardrail_materials {
-        let light_intensity = left_lane * 3.2;
+    let left_lane = curve.sample_clamped(frame.lane_left);
+    let center_lane = curve.sample_clamped(frame.lane_center);
+    let right_lane = curve.sample_clamped(frame.lane_right);
+    for (index, handle) in &guardrail_materials {
+        let (color, intensity) = match index.0 {
+            0 => {
+                let rail_color = Color::hsl(
+                    (left_lane * 60.0 - 30.0 + (360.0 * beat_frac)) % 360.0,
+                    1.0,
+                    0.2,
+                );
+                let light_intensity = left_lane * 3.2;
+                (rail_color, light_intensity)
+            }
+            1 => {
+                let rail_color = Color::hsl(
+                    (center_lane * 60.0 - 30.0 + (360.0 * beat_frac)) % 360.0,
+                    0.7,
+                    0.6,
+                );
+                let light_intensity = curve.sample_clamped(frame.lane_center) * 3.2;
+                (rail_color, light_intensity)
+            }
+            2 => {
+                let rail_color = Color::hsl(
+                    (right_lane * 60.0 - 30.0 + (360.0 * beat_frac)) % 360.0,
+                    0.7,
+                    0.7,
+                );
+                let light_intensity = curve.sample_clamped(frame.lane_right) * 3.2;
+                (rail_color, light_intensity)
+            }
+            _ => unreachable!(),
+        };
         if let Some(material) = materials.get_mut(&handle.0) {
-            material.base_color = rail_color;
-            material.emissive = material
-                .emissive
-                .lerp(rail_color.to_linear() * light_intensity, 0.1);
+            material.base_color = color;
+            material.emissive = material.emissive.lerp(color.to_linear() * intensity, 0.1);
         }
     }
 }

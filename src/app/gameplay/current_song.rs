@@ -47,7 +47,7 @@ impl CurrentSong {
             song_asset,
             track_bounding_box: Self::track_bounding_box(&track_points),
             track_points,
-            paused: false,
+            paused: true,
             cumulative_lengths: arc_lengths,
             total_length,
         })
