@@ -4,7 +4,9 @@ use crate::app::assets::GlobalAssets;
 use crate::app::gameplay::current_song::CurrentSong;
 use crate::app::gameplay::entities::MainScene;
 use crate::app::gameplay::track::mesh_generation::extrude_along_track;
-use crate::app::gameplay::track::procedural_meshes::{generate_track_mesh, generate_viaduct_mesh};
+use crate::app::gameplay::track::procedural_meshes::{
+    generate_guard_rail_meshes, generate_track_mesh, generate_viaduct_mesh,
+};
 use crate::app::gameplay::track::track_generation::resample_track_equidistant_points;
 use crate::app::gameplay::track::track_point::TrackPoint;
 use bevy::math::VectorSpace;
@@ -67,6 +69,24 @@ pub fn spawn_track(
         perceptual_roughness: 0.1,
         ..default()
     });
+    let guardrail_material = materials.add(StandardMaterial {
+        base_color: Color::linear_rgb(0.0, 0.0, 0.0),
+        emissive: LinearRgba::rgb(0.0, 0.0, 0.0),
+        perceptual_roughness: 0.1,
+        ..default()
+    });
+    let guardrail_meshes = generate_guard_rail_meshes(&resampled_distance_points);
+    guardrail_meshes
+        .into_iter()
+        .enumerate()
+        .for_each(|(i, mesh)| {
+            commands.spawn((
+                MainScene,
+                GuardRail(0),
+                Mesh3d(meshes.add(mesh)),
+                MeshMaterial3d(guardrail_material.clone()),
+            ));
+        });
     let cateye_mesh = meshes.add(Cuboid::from_size(Vec3::splat(0.18)));
     for (i, point) in resample_track_equidistant_points(&data.track_points, 40.0)
         .iter()
@@ -84,7 +104,8 @@ pub fn spawn_track(
                 builder.spawn((
                     Streetlight,
                     SpotLight {
-                        color: Color::srgb(1.0, 0.71, 0.29),
+                        // color: Color::srgb(1.0, 0.71, 0.29),
+                        color: Color::WHITE,
                         radius: 0.5,
                         range: 50.0,
                         intensity: 10_000_000.0,
@@ -196,10 +217,14 @@ pub struct SongTrackLine;
 #[derive(Component)]
 pub struct Cateye;
 
+#[derive(Component)]
+pub struct GuardRail(usize);
+
 pub fn update_track_line_emissive(
     song: Res<CurrentSong>,
     line_materials: Query<&MeshMaterial3d<StandardMaterial>, With<SongTrackLine>>,
     cateye_materials: Query<&MeshMaterial3d<StandardMaterial>, With<Cateye>>,
+    guardrail_materials: Query<&MeshMaterial3d<StandardMaterial>, With<GuardRail>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
     let frame = song.sample_gameplay_frame(song.current_frame_t());
@@ -214,7 +239,7 @@ pub fn update_track_line_emissive(
             );
         }
     }
-    let beat_color = Color::hsl(energy * 360.0, frame.beat_strength.max(0.2), 0.5);
+    let beat_color = Color::hsl(energy * 360.0, 1.0, 0.2);
     let beat_intensity = frame.beat_strength * 150.0;
     for handle in &cateye_materials {
         if let Some(material) = materials.get_mut(&handle.0) {
@@ -222,6 +247,24 @@ pub fn update_track_line_emissive(
             material.emissive = material
                 .emissive
                 .lerp(beat_color.to_linear() * beat_intensity, 0.1);
+        }
+    }
+    let bps = song.track_analysis.estimated_bpm.unwrap_or(120.0) / 60.;
+    let beat_frac = (frame.time_s / bps).fract();
+    let left_lane =
+        EasingCurve::new(0.0, 1.0, EaseFunction::SmootherStep).sample_clamped(frame.lane_left);
+    let rail_color = Color::hsl(
+        (left_lane * 360.0 + 120.0 + (360.0 * beat_frac)) % 360.0,
+        1.0,
+        0.6,
+    );
+    for handle in &guardrail_materials {
+        let light_intensity = left_lane * 3.8;
+        if let Some(material) = materials.get_mut(&handle.0) {
+            material.base_color = rail_color;
+            material.emissive = material
+                .emissive
+                .lerp(rail_color.to_linear() * light_intensity, 0.1);
         }
     }
 }

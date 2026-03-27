@@ -25,3 +25,12 @@ veículo vai ser um carro futurista. light streaks dos postes (usar luz amarela 
 de gato na pista luminosos.
 explorar deixar o pôr do sol mais escuro
 trajetória vertical do carro é meio que pré calculada. colocar pontos (?) quando o carro estiver pulando
+
+bugs:
+
+- meshes saem com a normal errada caso nao estejam proximas da horizontal ou sla
+- a mesh do track ainda sai muito tremida, precisa dar um smoothing nela melhorado
+- precisa melhorar a interpolação do track quando muda de equi-temp para equi-dist, de linear pra curvas de bezier ou
+  algo assim?
+- bpm detectado ou em half-time às vezes
+- bpm detectado corretamente mas fora de fase

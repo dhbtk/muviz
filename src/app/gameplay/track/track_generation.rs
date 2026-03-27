@@ -97,7 +97,7 @@ pub fn generate_track_points(
     let roll_limit = PI / 12.;
     let damping = 0.95;
     let springiness = 0.03;
-    let acceleration_decay = 0.002;
+    let acceleration_decay = 0.0015;
     let acceleration_scale = 0.002;
     let acceleration_limit = 0.01;
     let speed_decay = 0.001;
@@ -125,14 +125,11 @@ pub fn generate_track_points(
         let beat_changed = beat_index != previous_beat_index;
         previous_beat_index = beat_index;
 
-        let mut yaw_delta = curve.sample_clamped(
-            (if frame.lane_left + frame.lane_right > 1.0 {
-                frame.lane_left - frame.lane_right
-            } else {
-                frame.lane_left + frame.lane_right
-            }) * 0.95
-                + frame.beat_strength * 0.05,
-        ) * yaw_scale;
+        let mut yaw_delta = curve.sample_clamped(if frame.lane_left + frame.lane_right > 1.0 {
+            frame.lane_left - frame.lane_right
+        } else {
+            frame.lane_left + frame.lane_right
+        }) * yaw_scale;
         if beat_changed && beat_index > 0 && beat_index % yaw_flip_interval == 0 {
             yaw_sign = -yaw_sign;
             let prev = yaw_flip_interval;

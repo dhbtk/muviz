@@ -35,3 +35,27 @@ pub fn generate_viaduct_mesh(points: &[TrackPoint]) -> Mesh {
     let (lengths, _) = CurrentSong::compute_arc_length(points);
     mesh_generation::extrude_along_track(points, &track_shape, &lengths)
 }
+
+pub fn generate_guard_rail_meshes(points: &[TrackPoint]) -> Vec<Mesh> {
+    let shapes = vec![
+        vec![
+            Vec2::new(-9.1, 0.7),
+            Vec2::new(-9.4, 0.7),
+            Vec2::new(-9.4, 1.0),
+            Vec2::new(-9.1, 1.0),
+            Vec2::new(-9.1, 0.7),
+        ],
+        vec![
+            Vec2::new(9.4, 0.7),
+            Vec2::new(9.1, 0.7),
+            Vec2::new(9.1, 1.0),
+            Vec2::new(9.4, 1.0),
+            Vec2::new(9.4, 0.7),
+        ],
+    ];
+    let (lengths, _) = CurrentSong::compute_arc_length(points);
+    shapes
+        .iter()
+        .map(|shape| mesh_generation::extrude_along_track(points, shape, &lengths))
+        .collect()
+}
