@@ -3,13 +3,12 @@ pub mod track_lines;
 use crate::app::assets::GlobalAssets;
 use crate::app::gameplay::current_song::CurrentSong;
 use crate::app::gameplay::entities::MainScene;
-use crate::app::gameplay::track::mesh_generation::extrude_along_track;
+use crate::app::gameplay::track::mesh_generation::{extrude_along_track, TrackLinePoint};
 use crate::app::gameplay::track::procedural_meshes::{
     generate_guard_rail_meshes, generate_track_mesh, generate_viaduct_mesh,
 };
 use crate::app::gameplay::track::track_generation::resample_track_equidistant_points;
-use crate::app::gameplay::track::track_point::TrackPoint;
-use bevy::math::VectorSpace;
+use bevy::math::{Affine2, VectorSpace};
 use bevy::prelude::*;
 use std::f32::consts::PI;
 use track_lines::generate_line_meshes;
@@ -137,29 +136,24 @@ pub fn spawn_track(
             track_min_y - 20.0,
             point.position.z,
         ));
+        let mut i = 0;
+        let transforms = vec![
+            Affine2::from_scale(Vec2::new(1.5, 1.2)),
+            Affine2::from_scale(Vec2::new(1.5, 1.2)),
+        ];
         while starting_y > -required_length {
             let position = Vec3::new(0.0, starting_y, 0.0);
             let rotation = Quat::from_rotation_y(point.yaw) * Quat::from_rotation_x(PI / 2.0);
-            support_height_points.push(TrackPoint {
+            support_height_points.push(TrackLinePoint {
                 rotation,
                 position,
                 forward: (rotation * Vec3::Z).normalize(),
                 right: (rotation * Vec3::X).normalize(),
                 up: (rotation * -Vec3::Y).normalize(),
-                pitch: 0.0,
-                yaw: 0.0,
-                roll: 0.0,
-                speed: 0.0,
-                acceleration: 0.0,
-                current_beat: 0.0,
-                yaw_flip_interval: 0.0,
-                pitch_flip_interval: 0.0,
-                pitch_delta: 0.0,
-                yaw_delta: 0.0,
-                roll_delta: 0.0,
-                is_above_other_track: false,
+                transform: *transforms.get(i).unwrap_or(&Affine2::IDENTITY),
             });
             starting_y += -3.0;
+            i += 1;
         }
         let (lengths, _) = CurrentSong::compute_arc_length(&support_height_points);
         let pillar_mesh =

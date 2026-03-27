@@ -1,4 +1,5 @@
 use crate::analysis::model::{GameplayFrame, TrackAnalysis};
+use crate::app::gameplay::track::mesh_generation::TrackLinePoint;
 use crate::app::gameplay::track::track_point::{smooth_positions, TrackPoint};
 use crate::app::gameplay::track::{track_generation, track_point};
 use crate::app::playback::SongAsset;
@@ -51,14 +52,18 @@ impl CurrentSong {
             total_length,
         })
     }
-    pub fn compute_arc_length(points: &[TrackPoint]) -> (Vec<f32>, f32) {
+    pub fn compute_arc_length(points: &[impl Into<TrackLinePoint> + Clone]) -> (Vec<f32>, f32) {
         let mut lengths = Vec::with_capacity(points.len());
         let mut total = 0.0;
 
         lengths.push(0.0);
 
         for i in 1..points.len() {
-            let d = points[i].position.distance(points[i - 1].position);
+            let d = points[i]
+                .clone()
+                .into()
+                .position
+                .distance(points[i - 1].clone().into().position);
             total += d;
             lengths.push(total);
         }

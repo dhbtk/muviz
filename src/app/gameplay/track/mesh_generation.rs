@@ -1,9 +1,38 @@
 use crate::app::gameplay::track::track_point::TrackPoint;
-use bevy::math::Vec2;
+use bevy::math::{Affine2, Quat, Vec2, Vec3};
 use bevy::mesh::{Indices, Mesh, PrimitiveTopology};
 
+#[derive(Debug, Clone, Copy)]
+pub struct TrackLinePoint {
+    pub rotation: Quat,
+    pub position: Vec3,
+    pub forward: Vec3,
+    pub right: Vec3,
+    pub up: Vec3,
+    pub transform: Affine2,
+}
+
+impl From<&TrackPoint> for TrackLinePoint {
+    fn from(value: &TrackPoint) -> Self {
+        TrackLinePoint {
+            rotation: value.rotation,
+            position: value.position,
+            forward: value.forward,
+            right: value.right,
+            up: value.up,
+            transform: Affine2::IDENTITY,
+        }
+    }
+}
+
+impl From<TrackPoint> for TrackLinePoint {
+    fn from(value: TrackPoint) -> Self {
+        (&value).into()
+    }
+}
+
 pub fn extrude_along_track(
-    frames: &[TrackPoint],
+    frames: &[impl Into<TrackLinePoint> + Clone],
     shape: &[Vec2],
     cumulative_lengths: &[f32],
 ) -> Mesh {
@@ -19,9 +48,11 @@ pub fn extrude_along_track(
     let max_x = shape.iter().map(|p| p.x).fold(f32::NEG_INFINITY, f32::max);
 
     for (i, frame) in frames.iter().enumerate() {
+        let frame = frame.clone().into();
         let v = cumulative_lengths[i] / total_length;
 
         for p in shape {
+            let p = frame.transform.transform_vector2(*p);
             let world = frame.position + frame.right * p.x + frame.up * p.y;
 
             positions.push(world.to_array());

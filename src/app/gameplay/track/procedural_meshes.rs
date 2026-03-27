@@ -16,6 +16,7 @@ pub fn generate_track_mesh(points: &[TrackPoint]) -> Mesh {
         Vec2::new(-9.0, 0.0),
     ];
     let (lengths, _) = CurrentSong::compute_arc_length(points);
+
     mesh_generation::extrude_along_track(points, &track_shape, &lengths)
 }
 

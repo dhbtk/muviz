@@ -1,7 +1,7 @@
 use crate::analysis::model::{GameplayFrame, TrackAnalysis};
 use crate::app::gameplay::track::track_point::TrackPoint;
-use bevy::math::{Curve, Quat, Vec3};
-use bevy::prelude::{EaseFunction, EasingCurve};
+use bevy::math::{Curve, Quat, Vec2, Vec3};
+use bevy::prelude::{EaseFunction, EasingCurve, Vec3Swizzles};
 use rand::prelude::SmallRng;
 use rand::{RngExt, SeedableRng};
 use std::f32::consts::PI;
@@ -80,7 +80,7 @@ pub fn generate_track_points(
     let mut points: Vec<TrackPoint> = Vec::with_capacity(frames.len());
     let bps = analysis.estimated_bpm.unwrap_or(120.0) / 60.;
 
-    let beat_intervals = vec![1, 2, 2, 3, 3, 4, 4];
+    let beat_intervals = vec![1, 1, 1, 2, 2, 2, 3, 4];
 
     let mut yaw_flip_interval = beat_intervals[rng.random_range(0..beat_intervals.len())];
     let mut pitch_flip_interval = beat_intervals[rng.random_range(0..beat_intervals.len())];
@@ -126,7 +126,7 @@ pub fn generate_track_points(
         previous_beat_index = beat_index;
 
         let mut yaw_delta = curve.sample_clamped(if frame.lane_left + frame.lane_right > 1.0 {
-            frame.lane_left - frame.lane_right
+            frame.lane_left - frame.lane_right + frame.lane_center * pitch_sign
         } else {
             frame.lane_left + frame.lane_right
         }) * yaw_scale;
@@ -285,6 +285,18 @@ pub fn generate_track_points(
             roll_delta,
             is_above_other_track,
         });
+    }
+
+    for i in 0..points.len() {
+        let p = &points[i];
+        let list = points.iter().enumerate().any(|(j, p1)| {
+            p1.position.y < p.position.y
+                && Vec2::distance(p1.position.xz(), p.position.xz()) < 24.0
+                && (j as i32 <= i as i32 - 24 || j >= i + 24)
+        });
+        if list {
+            points[i].is_above_other_track = true;
+        }
     }
 
     info!(
